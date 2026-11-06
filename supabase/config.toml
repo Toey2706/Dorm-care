@@ -1,0 +1,19 @@
+# ค่าที่ต่างจากค่าเริ่มต้นของ Supabase CLI เท่านั้น
+project_id = "dorm-care"
+
+# ทุกฟังก์ชันปิด verify_jwt ของ gateway เพราะโปรเจกต์ใช้ JWT signing key แบบ ECC ซึ่ง gateway ตรวจไม่ได้
+# ฟังก์ชันที่ต้องรู้ว่าใครเรียกตรวจโทเคนเอง: login-otp-send ถาม Supabase Auth, notify-resident ส่งโทเคนต่อให้ฐานข้อมูลตรวจ
+[functions.line-webhook]
+verify_jwt = false
+
+[functions.login-otp-send]
+verify_jwt = false
+
+[functions.notify-resident]
+verify_jwt = false
+
+[functions.password-reset-request]
+verify_jwt = false
+
+[functions.password-reset-confirm]
+verify_jwt = false
