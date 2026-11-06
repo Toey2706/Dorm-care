@@ -1,6 +1,7 @@
 // ส่วนที่ผูกกับ Deno และ Supabase จริง แยกไว้ไฟล์นี้ไฟล์เดียว ที่เหลือใน _shared เป็น JS ธรรมดาที่ทดสอบด้วย Node ได้
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+// denomailer เข้ารหัสหัวเรื่องภาษาไทยผิดรูปแบบ (Gmail แสดงเป็นโค้ดดิบ) จึงใช้ nodemailer ที่ทำตาม RFC 2047
+import nodemailer from 'npm:nodemailer@6.9.16';
 import { jwtClaims } from './auth.js';
 
 const HTTP_BY_HINT: Record<string, number> = {
@@ -52,13 +53,17 @@ export function rpcOf(client: SupabaseClient) {
  */
 export async function sendMail(to: string, mail: { subject: string; text: string }) {
   const user = env('GMAIL_USER');
-  const client = new SMTPClient({
-    connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password: env('GMAIL_APP_PASSWORD') } },
+  const transport = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    // Google แสดง App Password แบบเว้นวรรคทุก 4 ตัว ตัดออกเผื่อวางมาทั้งแบบนั้น
+    auth: { user, pass: env('GMAIL_APP_PASSWORD').replace(/\s+/g, '') },
   });
   try {
-    await client.send({ from: `ระบบแจ้งซ่อมหอพัก <${user}>`, to, subject: mail.subject, content: mail.text });
+    await transport.sendMail({ from: { name: 'ระบบแจ้งซ่อมหอพัก', address: user }, to, subject: mail.subject, text: mail.text });
   } finally {
-    await client.close();
+    transport.close();
   }
 }
 
