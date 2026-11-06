@@ -7,12 +7,26 @@
 
 ใช้ Supabase แผนฟรี (ฐานข้อมูล Postgres, Auth, Storage, Edge Functions) กับแอป Flutter สำหรับผู้ดูแลและช่าง
 
-> สถานะ ณ 6 พ.ย. 2569
-> - ฐานข้อมูล: รัน migration และเทสต์ `supabase/tests` ผ่านบน PostgreSQL 16 ในเครื่อง โดยจำลองส่วน `auth` และ `storage` ของ Supabase ขึ้นเอง ยังไม่เคยรันบนโปรเจกต์ Supabase จริง
-> - Edge Functions: เทสต์ตรรกะผ่าน 26 ข้อด้วย Node (`node --test`) ส่วนที่ต่อกับ Supabase, LINE และ Gmail จริงยังไม่เคยรัน และยังไม่เคยตรวจ type ด้วย Deno
-> - แอป Flutter: **ยังไม่เคย compile** (เครื่องที่เขียนโค้ดไม่มี Flutter) ครั้งแรกที่รันอาจเจอ error ต้องแก้
->
-> ทีมต้องทำตามขั้นตอนด้านล่าง แล้วทดสอบบนมือถือจริงก่อนเขียนผลลงเล่ม
+> สถานะ ณ 7 พ.ย. 2569
+> - ฐานข้อมูลและ Edge Functions ทั้ง 5 ตัว deploy บนโปรเจกต์ Supabase `dorm-care` แล้ว เทสต์ฐานข้อมูลใน `supabase/tests` รันบน PostgreSQL ในเครื่องเท่านั้น
+> - Edge Functions: เทสต์ตรรกะผ่าน 28 ข้อด้วย Node (`node --test`) ยังไม่เคยตรวจ type ด้วย Deno ในเครื่อง
+> - แอป Flutter: build ผ่านบน GitHub Actions ทั้งเว็บและ APK เว็บเปิดที่ GitHub Pages
+> - 6-7 พ.ย. 2569 ทีมทดสอบเส้นทางหลักบนระบบจริงครบ ตั้งแต่ล็อกอินด้วย OTP ผูกห้อง แจ้งซ่อม มอบหมาย บันทึกผลพร้อมรูป จนผู้พักได้ข้อความและรูปทาง LINE
+>   ผลนี้ยังไม่ได้ลง SQA Checklist ต้องแนบภาพหน้าจอเป็นหลักฐานก่อน รายการอื่นใน Checklist ยังไม่ได้ทดสอบ
+
+## เปิดใช้งาน
+
+แอปของผู้ดูแลและช่างมี 2 แบบ ใช้บัญชีเดียวกัน
+
+| อุปกรณ์ | วิธีใช้ |
+|---|---|
+| iPhone | เปิด https://toey2706.github.io/Dorm-care/ ด้วย Safari กดปุ่มแชร์ แล้วเลือก "เพิ่มไปยังหน้าจอโฮม" |
+| คอมพิวเตอร์ | เปิดลิงก์เดียวกันในเบราว์เซอร์ |
+| Android | ดาวน์โหลด `dorm-care-android` จากหัวข้อ Artifacts ของรอบล่าสุดในแท็บ Actions (ต้องล็อกอิน GitHub) แตกไฟล์ zip แล้วติดตั้ง `app-release.apk` |
+
+ทุกครั้งที่ push โค้ดในโฟลเดอร์ `app/` ขึ้น `main` ไฟล์ `.github/workflows/app.yml` จะ build เว็บกับ APK ใหม่และอัปเดตเว็บให้เอง
+APK นี้ยังเซ็นด้วยกุญแจทดสอบของ Flutter ติดตั้งเองได้ แต่ส่งขึ้น Play Store ไม่ได้
+เว็บบน iPhone ไม่ใช่แอปจาก App Store ถ้าล้างข้อมูล Safari ต้องเข้าสู่ระบบและยืนยัน OTP ใหม่
 
 ## โครงสร้าง
 
@@ -144,4 +158,5 @@ PGHOST=... PGPORT=... PGUSER=postgres supabase/tests/run.sh   # ฐานข้�
 - ข้อความ LINE อยู่ใน `supabase/functions/_shared/messages.js` และข้อความอีเมล OTP อยู่ใน `_shared/auth.js` รอทีมยืนยันถ้อยคำ
 - ไม่มีหน้าจัดการพนักงานในแอป เพิ่มหรือปิดบัญชีผ่าน Dashboard และ SQL Editor
 - ไม่ได้ทำตามขอบเขต: LINE LIFF, นัดหมายเข้าห้อง, EAC, Push Notification
+- รูปหลังซ่อมที่ส่งทาง LINE เป็นลิงก์ชั่วคราว 30 วัน (`PHOTO_DAYS` ใน `_shared/notify.js`) หมดอายุแล้วรูปในแชตจะเปิดไม่ขึ้น
 - System B (อุปกรณ์วัดน้ำ) เป็นผลิตภัณฑ์แยก ไม่อยู่ในโค้ดนี้
