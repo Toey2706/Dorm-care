@@ -1,0 +1,28 @@
+// ตั้งค่า verify_jwt = false (LINE ไม่มี JWT ของ Supabase) ความปลอดภัยมาจากลายเซ็น x-line-signature แทน
+import { verifySignature, createClient as lineClient } from '../_shared/line.js';
+import { createWebhook } from '../_shared/webhook.js';
+import { env, logger, rpcOf, serviceClient } from '../_shared/deno.ts';
+
+const db = serviceClient();
+const webhook = createWebhook({
+  rpc: rpcOf(db),
+  storage: {
+    async save(path: string, bytes: Uint8Array, contentType: string) {
+      const { error } = await db.storage.from('resident-photos').upload(path, bytes, { contentType, upsert: true });
+      if (error) throw new Error(`storage ${error.message}`);
+    },
+  },
+  logger,
+});
+
+Deno.serve(async (req) => {
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+  const raw = new Uint8Array(await req.arrayBuffer());
+  if (!(await verifySignature(raw, req.headers.get('x-line-signature'), env('LINE_CHANNEL_SECRET')))) {
+    return new Response('Invalid signature', { status: 401 });
+  }
+  const body = JSON.parse(new TextDecoder().decode(raw));
+  const ok = await webhook.handleAll(lineClient(env('LINE_CHANNEL_ACCESS_TOKEN')), body.events || []);
+  // 500 เมื่อมีเหตุการณ์ที่ทำไม่สำเร็จ ถ้าเปิด Webhook redelivery ใน LINE Console จะส่งซ้ำให้
+  return new Response(ok ? 'OK' : 'Retry', { status: ok ? 200 : 500 });
+});
