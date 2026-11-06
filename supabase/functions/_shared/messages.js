@@ -83,6 +83,12 @@ export function repairResult(ticket, categoryLabel) {
       `ห้อง: ${ticket.roomNo}\n` +
       `หมวด: ${categoryLabel}\n` +
       'สถานะ: ซ่อมเสร็จแล้ว\n' +
-      `ผลการซ่อม: ${ticket.repairResult || '-'}`
+      `ผลการซ่อม: ${ticket.repairResult || '-'}` +
+      (ticket.photoCount ? `\n\nรูปหลังซ่อม ${ticket.photoCount} รูปอยู่ถัดจากข้อความนี้ เปิดดูได้ ${ticket.photoDays} วัน` : '')
   );
+}
+
+/** LINE ต้องการลิงก์ HTTPS ที่เปิดได้ตรง ใช้รูปเดียวกันเป็นทั้งรูปเต็มและรูปตัวอย่าง */
+export function image(url) {
+  return { type: 'image', originalContentUrl: url, previewImageUrl: url };
 }
