@@ -88,15 +88,16 @@ class Api {
       .eq('id', id)
       .map((rows) => rows.isEmpty ? null : Ticket.fromJson(rows.first));
 
+  // supabase_flutter เรียงจากมากไปน้อยถ้าไม่ระบุ ascending ทุกรายการในไฟล์นี้จึงระบุทิศทางเอง
   Stream<List<HistoryEntry>> history(String ticketId) => _sb
       .from('ticket_history')
       .stream(primaryKey: ['id'])
       .eq('ticket_id', ticketId)
-      .order('at')
+      .order('at', ascending: true)
       .map((rows) => rows.map(HistoryEntry.fromJson).toList());
 
   Future<List<Staff>> technicians() async {
-    final rows = await _sb.from('staff').select().eq('role', 'TECHNICIAN').eq('active', true).order('name');
+    final rows = await _sb.from('staff').select().eq('role', 'TECHNICIAN').eq('active', true).order('name', ascending: true);
     return rows.map(Staff.fromJson).toList();
   }
 
@@ -104,11 +105,11 @@ class Api {
       .from('line_bindings')
       .stream(primaryKey: ['id'])
       .eq('status', status)
-      .order('room_no')
+      .order('room_no', ascending: true)
       .map((rows) => rows.map(Binding.fromJson).toList());
 
   Future<List<String>> rooms() async {
-    final rows = await _sb.from('rooms').select('room_no').eq('active', true).order('room_no');
+    final rows = await _sb.from('rooms').select('room_no').eq('active', true).order('room_no', ascending: true);
     return rows.map((r) => r['room_no'] as String).toList();
   }
 
