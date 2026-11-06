@@ -1,7 +1,8 @@
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:supabase_flutter/supabase_flutter.dart';
+// realtime_client ก็มีคลาสชื่อ Binding ซ่อนไว้ให้ใช้ของเราใน models.dart
+import 'package:supabase_flutter/supabase_flutter.dart' hide Binding;
 
 import '../models.dart';
 
