@@ -40,7 +40,7 @@ jobs:
       - name: ตรวจโค้ด
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: build เว็บ
-        run: flutter build web --release --base-href /dorm-care/ --dart-define-from-file=config.json
+        run: flutter build web --release --base-href /${{ github.event.repository.name }}/ --dart-define-from-file=config.json
       - name: build APK
         run: flutter build apk --release --dart-define-from-file=config.json
       - uses: actions/upload-artifact@v4
