@@ -1,0 +1,8 @@
+node_modules/
+app/build/
+app/.dart_tool/
+app/supabase.json
+# app/config.json ตั้งใจเก็บไว้ใน Git: มีแค่ URL และ anon key ซึ่งฝังอยู่ในแอปอยู่แล้ว สิทธิ์จริงคุมด้วย RLS
+supabase/.temp/
+supabase/.branches/
+supabase/seed.sql

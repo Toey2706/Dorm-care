@@ -1,0 +1,60 @@
+# build แอปทุกครั้งที่ push เข้า main: เว็บขึ้น GitHub Pages (ใช้บน iPhone ผ่าน Safari) และไฟล์ APK สำหรับ Android
+name: app
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", ".github/workflows/app.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: สร้างโฟลเดอร์ android และไฟล์ web ที่ขาด (ไม่ทับไฟล์ที่มีอยู่)
+        run: flutter create --project-name dorm_care_staff --org com.dormcare --platforms android,web .
+      - run: flutter pub get
+      - name: ตรวจโค้ด
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: build เว็บ
+        run: flutter build web --release --base-href /dorm-care/ --dart-define-from-file=config.json
+      - name: build APK
+        run: flutter build apk --release --dart-define-from-file=config.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dorm-care-android
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
