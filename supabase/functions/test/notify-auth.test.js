@@ -5,6 +5,7 @@ import { sendLoginOtp, requestPasswordReset, confirmPasswordReset, jwtClaims, Au
 
 const quiet = { warn: () => {}, error: () => {} };
 const RID = '0b8a9f2e-6c1d-4f3a-9b7e-2d5c8e1f4a60';
+const noPhotos = async () => [];
 
 function notifyDb() {
   const log = {};
@@ -26,24 +27,24 @@ function notifyDb() {
 
 function lineClient() {
   const sent = [];
-  return { sent, push: async (to, msgs, key) => { if (lineClient.down) throw new Error('LINE 500'); sent.push({ to, key, text: msgs[0].text }); } };
+  return { sent, push: async (to, msgs, key) => { if (lineClient.down) throw new Error('LINE 500'); sent.push({ to, key, text: msgs[0].text, msgs }); } };
 }
 
 test('แจ้งผลสำเร็จ แล้วเรียกซ้ำด้วยรหัสเดิมไม่ส่งซ้ำ', async () => {
   const db = notifyDb();
   const client = lineClient();
-  assert.deepEqual(await notifyResident({ rpc: db.rpc, client, logger: quiet }, { ticketId: 'r_1', requestId: RID }), { ok: true });
+  assert.deepEqual(await notifyResident({ rpc: db.rpc, client, logger: quiet, photoUrls: noPhotos }, { ticketId: 'r_1', requestId: RID }), { ok: true });
   assert.equal(client.sent.length, 1);
   assert.equal(client.sent[0].key, RID);
   assert.match(client.sent[0].text, /ประปา[\s\S]*เปลี่ยนซีล/);
-  assert.deepEqual(await notifyResident({ rpc: db.rpc, client, logger: quiet }, { ticketId: 'r_1', requestId: RID }), { ok: true, duplicate: true });
+  assert.deepEqual(await notifyResident({ rpc: db.rpc, client, logger: quiet, photoUrls: noPhotos }, { ticketId: 'r_1', requestId: RID }), { ok: true, duplicate: true });
   assert.equal(client.sent.length, 1);
 });
 
 test('LINE ส่งแล้วแต่บันทึกไม่สำเร็จ ยังตอบว่าสำเร็จ', async () => {
   const db = notifyDb();
   db.rpc.failFinish = true;
-  const r = await notifyResident({ rpc: db.rpc, client: lineClient(), logger: quiet }, { ticketId: 'r_1', requestId: RID });
+  const r = await notifyResident({ rpc: db.rpc, client: lineClient(), logger: quiet, photoUrls: noPhotos }, { ticketId: 'r_1', requestId: RID });
   assert.deepEqual(r, { ok: true, logged: false });
 });
 
@@ -51,16 +52,42 @@ test('LINE ล่ม แจ้งว่าล้มเหลวและบั�
   const db = notifyDb();
   const client = lineClient();
   lineClient.down = true;
-  await assert.rejects(notifyResident({ rpc: db.rpc, client, logger: quiet }, { ticketId: 'r_1', requestId: RID }), (e) => e instanceof NotifyError && e.status === 503);
+  await assert.rejects(notifyResident({ rpc: db.rpc, client, logger: quiet, photoUrls: noPhotos }, { ticketId: 'r_1', requestId: RID }), (e) => e instanceof NotifyError && e.status === 503);
   assert.equal(db.log[RID], 'FAILED');
   lineClient.down = false;
-  await notifyResident({ rpc: db.rpc, client, logger: quiet }, { ticketId: 'r_1', requestId: RID });
+  await notifyResident({ rpc: db.rpc, client, logger: quiet, photoUrls: noPhotos }, { ticketId: 'r_1', requestId: RID });
+  assert.equal(db.log[RID], 'SENT');
+});
+
+test('แจ้งผลพร้อมรูปหลังซ่อม ส่งข้อความกับรูปใน push เดียว ลิงก์อายุ 30 วัน', async () => {
+  const db = notifyDb();
+  const client = lineClient();
+  let asked;
+  const photoUrls = async (id, seconds) => { asked = { id, seconds }; return ['https://x.test/1.jpg', 'https://x.test/2.jpg', 'https://x.test/3.jpg', 'https://x.test/4.jpg']; };
+  await notifyResident({ rpc: db.rpc, client, logger: quiet, photoUrls }, { ticketId: 'r_1', requestId: RID });
+  assert.deepEqual(asked, { id: 'r_1', seconds: 30 * 86400 });
+  const msgs = client.sent[0].msgs;
+  assert.equal(msgs.length, 4);
+  assert.match(msgs[0].text, /รูปหลังซ่อม 3 รูป[\s\S]*30 วัน/);
+  assert.deepEqual(msgs[1], { type: 'image', originalContentUrl: 'https://x.test/1.jpg', previewImageUrl: 'https://x.test/1.jpg' });
+});
+
+test('สร้างลิงก์รูปไม่ได้ ยังส่งผลการซ่อมเป็นข้อความ', async () => {
+  const db = notifyDb();
+  const client = lineClient();
+  const warns = [];
+  const photoUrls = async () => { throw new Error('storage down'); };
+  const r = await notifyResident({ rpc: db.rpc, client, logger: { ...quiet, warn: (m) => warns.push(m) }, photoUrls }, { ticketId: 'r_1', requestId: RID });
+  assert.deepEqual(r, { ok: true });
+  assert.equal(client.sent[0].msgs.length, 1);
+  assert.doesNotMatch(client.sent[0].text, /รูปหลังซ่อม/);
+  assert.equal(warns.length, 1);
   assert.equal(db.log[RID], 'SENT');
 });
 
 test('รหัสคำขอไม่ใช่ UUID ไม่เรียกฐานข้อมูล', async () => {
   const db = notifyDb();
-  await assert.rejects(notifyResident({ rpc: db.rpc, client: lineClient(), logger: quiet }, { ticketId: 'r_1', requestId: 'abc' }), /รหัสคำขอ/);
+  await assert.rejects(notifyResident({ rpc: db.rpc, client: lineClient(), logger: quiet, photoUrls: noPhotos }, { ticketId: 'r_1', requestId: 'abc' }), /รหัสคำขอ/);
   assert.equal(db.calls.length, 0);
 });
 
@@ -83,7 +110,7 @@ test('OTP ล็อกอิน: ส่งอีเมลพร้อมรห�
 test('ลืมรหัสผ่าน: อีเมลที่ไม่มีในระบบตอบเหมือนอีเมลที่มี', async () => {
   const mails = [];
   const rpc = async (fn, a) => (a.p_email === 'staff@x.test' ? { ok: true, code: '111111', email: a.p_email, name: 'ก', ttl_min: 10 } : { ok: false, error: 'NO_USER' });
-  const deps = { rpc, sendMail: async (to) => mails.push(to), logger: quiet };
+  const deps = { rpc, sendMail: async (to) => mails.push(to), logger: quiet, photoUrls: noPhotos };
   assert.deepEqual(await requestPasswordReset(deps, { email: ' Staff@x.test ' }), { ok: true });
   assert.deepEqual(await requestPasswordReset(deps, { email: 'nobody@x.test' }), { ok: true });
   assert.deepEqual(mails, ['staff@x.test']);
