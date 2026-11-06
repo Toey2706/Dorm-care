@@ -34,6 +34,8 @@ jobs:
           cache: true
       - name: สร้างโฟลเดอร์ android และไฟล์ web ที่ขาด (ไม่ทับไฟล์ที่มีอยู่)
         run: flutter create --project-name dorm_care_staff --org com.dormcare --platforms android,web .
+      # flutter create ใส่ test/widget_test.dart ตัวอย่างที่อ้าง MyApp ซึ่งแอปนี้ไม่มี
+      - run: rm -f test/widget_test.dart
       - run: flutter pub get
       - name: ตรวจโค้ด
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
