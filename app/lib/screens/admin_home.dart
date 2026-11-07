@@ -81,6 +81,16 @@ class _TicketsPageState extends State<_TicketsPage> {
 
   void _refreshCounts() => setState(() => _counts = Api.instance.counts());
 
+  // ตัวเลขบนตัวกรองนับจากฐานข้อมูลแยกจากรายการ เมื่อรายการแบบ realtime เปลี่ยน (งานใหม่หรือสถานะเปลี่ยน)
+  // จึงสั่งนับใหม่ตาม ไม่อย่างนั้นจะเห็น "งานค้าง (0)" ทั้งที่มีงานขึ้นอยู่ในรายการ
+  String? _lastSignature;
+  void _countsFollow(List<Ticket> items) {
+    final sig = items.map((t) => '${t.id}:${t.stage.name}').join(',');
+    final changed = _lastSignature != null && _lastSignature != sig;
+    _lastSignature = sig;
+    if (changed) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _refreshCounts() : null);
+  }
+
   Stream<List<Ticket>> get _stream {
     switch (_filter) {
       case _Filter.open:
@@ -211,6 +221,7 @@ class _TicketsPageState extends State<_TicketsPage> {
                   builder: (context, snap) {
                     if (snap.hasError) return Center(child: Text('โหลดข้อมูลไม่สำเร็จ: ${snap.error}'));
                     if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                    _countsFollow(snap.data!);
                     final items = _apply(snap.data!);
                     final more = _filter == _Filter.completed && snap.data!.length >= _completedLimit;
                     return _list(
