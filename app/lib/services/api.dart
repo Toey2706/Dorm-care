@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -21,21 +22,53 @@ class Api {
     return row == null ? null : Staff.fromJson(row);
   }
 
-  // stream ของ Supabase กรองได้เงื่อนไขเดียว จึงมีคอลัมน์ is_open และ awaiting_notify ให้กรอง
-
-  Stream<List<Ticket>> openTickets() => _sb
+  // stream ของ Supabase กรองที่เซิร์ฟเวอร์ ถ้าแก้แถวจนหลุดเงื่อนไข (เช่น แจ้งผลแล้ว awaiting_notify เป็น false)
+  // เซิร์ฟเวอร์จะไม่ส่งการแก้ไขนั้นมา แถวเลยค้างบนหน้าจอ รายการที่งานย้ายเข้าออกได้จึงใช้ _liveTickets แทน
+  Stream<List<Ticket>> openTickets() => _liveTickets(() => _sb
       .from('tickets')
-      .stream(primaryKey: ['id'])
+      .select()
       .eq('is_open', true)
-      .order('created_at', ascending: false)
-      .map((rows) => rows.map(Ticket.fromJson).toList());
+      .order('created_at', ascending: false));
 
-  Stream<List<Ticket>> notNotifiedTickets() => _sb
+  Stream<List<Ticket>> notNotifiedTickets() => _liveTickets(() => _sb
       .from('tickets')
-      .stream(primaryKey: ['id'])
+      .select()
       .eq('awaiting_notify', true)
-      .order('created_at', ascending: false)
-      .map((rows) => rows.map(Ticket.fromJson).toList());
+      .order('created_at', ascending: false));
+
+  /// ฟังทุกการเปลี่ยนแปลงของ tickets ที่ RLS ให้เห็น แล้วดึงรายการตามเงื่อนไขใหม่ทั้งชุด
+  /// หอพักมีงานไม่กี่สิบรายการต่อวัน การดึงใหม่ทุกครั้งจึงไม่หนัก
+  /// Stream.multi ทำให้ StreamBuilder ฟังใหม่ได้ทุกครั้งที่สลับตัวกรอง เหมือน stream เดิมของ Supabase
+  Stream<List<Ticket>> _liveTickets(Future<List<Map<String, dynamic>>> Function() fetch) => Stream.multi((out) {
+        var seq = 0;
+        Future<void> load() async {
+          final mine = ++seq;
+          try {
+            final rows = await fetch();
+            // ผลของคำขอเก่าที่กลับมาช้ากว่าคำขอใหม่ต้องทิ้ง ไม่งั้นรายการจะย้อนกลับไปเป็นข้อมูลเก่า
+            if (mine == seq && !out.isClosed) out.add(rows.map(Ticket.fromJson).toList());
+          } catch (e, st) {
+            if (!out.isClosed) out.addError(e, st);
+          }
+        }
+
+        final channel = _sb
+            .channel('tickets-live-${_channelSeq++}')
+            .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'tickets', callback: (_) => load())
+            // โหลดอีกครั้งตอนต่อ realtime สำเร็จ เผื่อมีงานเปลี่ยนระหว่างโหลดครั้งแรกกับตอนเริ่มฟัง
+            .subscribe((status, _) {
+          if (status == RealtimeSubscribeStatus.subscribed) load();
+        });
+        // ช่างที่ถูกเปลี่ยนออกจากงานจะไม่ได้รับเหตุการณ์นั้น เพราะ RLS ไม่ให้เห็นแถวหลังแก้แล้ว
+        // จึงดึงใหม่ทุก 30 วินาทีด้วย งานจะหายจากรายการช่างเดิมภายในเวลานั้น
+        final timer = Timer.periodic(const Duration(seconds: 30), (_) => load());
+        load();
+        out.onCancel = () {
+          timer.cancel();
+          return _sb.removeChannel(channel);
+        };
+      });
+  static int _channelSeq = 0;
 
   /// งานที่ซ่อมเสร็จแล้ว แบ่งหน้า (เพิ่ม limit เมื่อกด "โหลดเพิ่ม")
   /// ช่างเห็นเฉพาะงานของตัวเองอยู่แล้วจาก RLS ไม่ต้องกรองซ้ำ
@@ -47,12 +80,13 @@ class Api {
       .limit(limit)
       .map((rows) => rows.map(Ticket.fromJson).toList());
 
-  Stream<List<Ticket>> myOpenTickets(String userId) => _sb
-      .from('tickets')
-      .stream(primaryKey: ['id'])
-      .eq('assigned_to', userId)
-      .order('created_at', ascending: false)
-      .map((rows) => rows.map(Ticket.fromJson).where((t) => t.stage != TicketStage.completed).toList());
+  // ใช้ _liveTickets เพราะเมื่อผู้ดูแลเปลี่ยนช่าง งานต้องหายจากรายการของช่างคนเดิม
+  Stream<List<Ticket>> myOpenTickets(String userId) => _liveTickets(() => _sb
+          .from('tickets')
+          .select()
+          .eq('assigned_to', userId)
+          .neq('status', 'COMPLETED')
+          .order('created_at', ascending: false));
 
   /// ค้นในฐานข้อมูลตรง ๆ เพราะรายการซ่อมเสร็จบนหน้าจอโหลดมาแค่บางหน้า
   Future<List<Ticket>> search(String input) async {
