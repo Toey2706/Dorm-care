@@ -48,3 +48,14 @@ test('แจ้งผลการซ่อมมีรูปหัวการ�
   assert.equal(M.repairResult(t, 'ประปา', 'https://x/1.jpg').contents.hero.url, 'https://x/1.jpg');
   assert.equal(M.repairResult({ ...t, photoCount: 0 }, 'ประปา').contents.hero, undefined);
 });
+
+test('ทุกขั้นที่มีปุ่มเป็นการ์ด ปุ่มในการ์ดตรงกับ quick reply', () => {
+  const cats = [{ code: 'PLUMBING', label: 'ประปา' }, { code: 'ELECTRICAL', label: 'ไฟฟ้า' }];
+  for (const m of [M.welcome(), M.help(), M.askBindCode(), M.askCategory(cats), M.askDetail(), M.askPhoto(3), M.photoReceived(1, 3), M.reportFailed(), M.bindingDone('A1-01')]) {
+    assert.equal(m.type, 'flex');
+    const inCard = m.contents.footer.contents.map((b) => b.action.text);
+    assert.deepEqual(inCard, m.quickReply.items.map((i) => i.action.text));
+    assert.ok(texts(m.contents).every((t) => typeof t === 'string' && t.length > 0));
+  }
+  assert.deepEqual(M.askPhoto(3).contents.footer.contents.map((b) => b.action.text), ['ข้าม', 'ยกเลิก']);
+});
