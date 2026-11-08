@@ -85,11 +85,39 @@ class TicketTile extends StatelessWidget {
                   '${ticket.assignedToName == null ? '' : '\nช่าง: ${ticket.assignedToName}'}',
                   style: theme.textTheme.bodySmall,
                 ),
+                AgeLabel(ticket),
               ]),
             ),
           ]),
         ),
       ),
+    );
+  }
+}
+
+/// บอกว่างานที่ยังไม่เสร็จค้างมากี่วัน ผู้ดูแลจะเห็นงานที่ถูกลืมโดยไม่ต้องเปิดดูทีละใบ
+/// ไม่แสดงในวันแรก ๆ เพื่อไม่ให้รายการรก สีเข้มขึ้นเมื่อค้างนาน
+class AgeLabel extends StatelessWidget {
+  const AgeLabel(this.ticket, {super.key});
+  final Ticket ticket;
+
+  static int? daysOpen(Ticket t, [DateTime? now]) {
+    if (t.stage == TicketStage.completed || t.createdAt == null) return null;
+    return (now ?? DateTime.now()).difference(t.createdAt!).inDays;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final days = daysOpen(ticket);
+    if (days == null || days < 2) return const SizedBox.shrink();
+    final color = days >= 7 ? const Color(0xFFB42318) : (days >= 3 ? const Color(0xFFB54708) : mutedText);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.hourglass_bottom, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text('ค้าง $days วัน', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color)),
+      ]),
     );
   }
 }
