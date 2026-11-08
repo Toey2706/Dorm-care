@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/api.dart';
+import '../theme.dart';
 import '../widgets/common.dart';
 import 'record_result.dart';
 
@@ -85,18 +86,45 @@ class _Body extends StatelessWidget {
             stream: Api.instance.history(t.id),
             builder: (context, snap) {
               if (!snap.hasData) return const LinearProgressIndicator();
+              final items = snap.data!;
+              // เส้นเวลาแนวตั้ง จุดล่าสุดเป็นสีหลัก อ่านลำดับเหตุการณ์ได้ง่ายกว่ารายการจุดธรรมดา
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final h in snap.data!)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Padding(padding: EdgeInsets.only(top: 6, right: 8), child: Icon(Icons.circle, size: 8)),
+                  for (var i = 0; i < items.length; i++)
+                    IntrinsicHeight(
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        SizedBox(
+                          width: 24,
+                          child: Column(children: [
+                            const SizedBox(height: 6),
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: i == items.length - 1 ? brand : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                            if (i < items.length - 1)
+                              Expanded(child: Container(width: 2, color: const Color(0xFFE3E8EF))),
+                          ]),
+                        ),
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            '${h.label}${h.actorName.isEmpty ? '' : ' โดย ${h.actorName}'}'
-                            '${h.note.isEmpty ? '' : '\n${h.note}'}\n${thaiDate(h.at)}',
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(
+                                '${items[i].label}${items[i].actorName.isEmpty ? '' : ' โดย ${items[i].actorName}'}',
+                                style: TextStyle(
+                                  fontWeight: i == items.length - 1 ? FontWeight.w600 : FontWeight.w500,
+                                  color: i == items.length - 1 ? brand : null,
+                                ),
+                              ),
+                              if (items[i].note.isNotEmpty) Text(items[i].note),
+                              Text(thaiDate(items[i].at), style: Theme.of(context).textTheme.bodySmall),
+                            ]),
                           ),
                         ),
                       ]),
