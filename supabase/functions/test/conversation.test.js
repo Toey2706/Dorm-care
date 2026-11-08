@@ -58,5 +58,5 @@ test('รูปครบ 3 รูปไปขั้นยืนยันอั�
 
 test('ผูกห้องแล้วกดผูกซ้ำ แจ้งว่าผูกแล้ว', () => {
   const r = handle(null, active, say('ผูกเลขห้อง'));
-  assert.match(r.effects[0].messages[0].text, /ผูกกับห้อง 305 แล้ว/);
+  assert.match(r.effects[0].messages[0].altText ?? r.effects[0].messages[0].text, /ผูกกับห้อง 305 แล้ว/);
 });

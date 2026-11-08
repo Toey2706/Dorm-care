@@ -126,7 +126,7 @@ export function handle(session, binding, event) {
       if (!category) return { session: current, effects: [reply(M.askCategory(CATEGORIES))] };
       return {
         session: { state: STATE.REPORT_DETAIL, draft: { ...current.draft, category: category.code } },
-        effects: [reply(M.text('กรุณาพิมพ์รายละเอียดปัญหา เช่น ตำแหน่งและอาการที่พบ\n(พิมพ์ "ยกเลิก" เพื่อยกเลิก)'))],
+        effects: [reply(M.askDetail())],
       };
     }
 
