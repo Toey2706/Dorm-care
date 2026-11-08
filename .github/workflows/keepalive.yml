@@ -21,6 +21,7 @@ jobs:
         run: |
           URL=$(jq -r .SUPABASE_URL app/config.json)
           KEY=$(jq -r .SUPABASE_ANON_KEY app/config.json)
-          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/rest/v1/rooms?select=room_no&limit=1" -H "apikey: $KEY")
-          echo "HTTP $code"
-          test "$code" = "200"
+          body=$(curl -s -w '\n%{http_code}' "$URL/rest/v1/rooms?select=room_no&limit=1" -H "apikey: $KEY")
+          echo "$body"
+          # ผู้ที่ไม่ได้ล็อกอินไม่มีสิทธิ์อ่านตาราง ฐานข้อมูลตอบ 42501 กลับมา แปลว่าคำขอถึง Postgres แล้ว ถือว่าสำเร็จ
+          echo "$body" | grep -qE '^200$|42501'
