@@ -43,7 +43,8 @@ export async function notifyResident({ rpc, client, logger, photoUrls }, { ticke
   }
   const message = M.repairResult(
     { ticketNo: t.ticket_no, roomNo: t.room_no, repairResult: t.repair_result, photoCount: urls.length, photoDays: PHOTO_DAYS },
-    categoryLabel(t.category)
+    categoryLabel(t.category),
+    urls[0]
   );
   try {
     // ส่งรวมใน push เดียว LINE นับโควตาเป็น 1 ข้อความต่อผู้รับ และ retry key เดียวกันกันส่งซ้ำได้ทั้งชุด
