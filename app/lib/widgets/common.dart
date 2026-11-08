@@ -63,14 +63,20 @@ class TicketTile extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // เลขห้องตัวใหญ่ เพราะเป็นสิ่งที่ผู้ดูแลมองหาก่อนเมื่อไล่รายการ
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(
-                    child: Text('ห้อง ${ticket.roomNo}', style: theme.textTheme.titleMedium?.copyWith(fontSize: 19, fontWeight: FontWeight.w700)),
+                // ถ้าป้ายสถานะยาวจนไม่พอในบรรทัดเดียวกับเลขห้อง (เช่นบนจอมือถือแคบ) ให้ป้ายลงไปบรรทัดใหม่แทนการตัดคำ
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    Text('ห้อง ${ticket.roomNo}', style: theme.textTheme.titleMedium?.copyWith(fontSize: 19, fontWeight: FontWeight.w700)),
+                    StageChip(ticket),
+                  ],
                   ),
-                  const SizedBox(width: 8),
-                  // จำกัดความกว้างป้ายไว้ ป้ายยาวจะตัดบรรทัดแทนการดันเลขห้องจนล้น
-                  ConstrainedBox(constraints: const BoxConstraints(maxWidth: 190), child: StageChip(ticket)),
-                ]),
+                ),
                 const SizedBox(height: 4),
                 Text(ticket.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
                 const SizedBox(height: 4),
