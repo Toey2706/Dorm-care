@@ -15,11 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # ใช้ anon key ตัวเดียวกับที่ฝังในแอปอยู่แล้ว RLS ทำให้ได้ผลว่างกลับมา แต่นับเป็นการใช้งานฐานข้อมูล
+      # ใช้คีย์สาธารณะตัวเดียวกับที่ฝังในแอปอยู่แล้ว ส่งแค่ apikey (คีย์แบบ publishable ใส่ใน Authorization ไม่ได้)
+      # RLS ทำให้ได้ผลว่างกลับมา แต่นับเป็นการใช้งานฐานข้อมูล
       - name: เรียกฐานข้อมูล
         run: |
           URL=$(jq -r .SUPABASE_URL app/config.json)
           KEY=$(jq -r .SUPABASE_ANON_KEY app/config.json)
-          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/rest/v1/rooms?select=room_no&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/rest/v1/rooms?select=room_no&limit=1" -H "apikey: $KEY")
           echo "HTTP $code"
           test "$code" = "200"
