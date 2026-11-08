@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.line-richmenu-setup]
 verify_jwt = false
+
+[functions.staff-notify]
+verify_jwt = false

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'api.dart';
+import 'push_service.dart';
 
 /// สถานะหลังล็อกอินด้วยรหัสผ่าน ใช้เลือกว่าจะพาไปหน้าไหน
 class AuthStatus {
@@ -110,6 +111,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    await PushService.instance.unregister();
     try {
       await _sb.rpc('end_session');
     } catch (_) {

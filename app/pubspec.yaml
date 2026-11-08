@@ -13,6 +13,9 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   image_picker: ^1.1.2
   intl: ^0.19.0
+  # แจ้งเตือนงานเข้าแอป Android (FCM) ไม่ได้ใช้ฐานข้อมูลของ Firebase
+  firebase_core: ^4.0.0
+  firebase_messaging: ^16.1.0
 
 dev_dependencies:
   flutter_test:
