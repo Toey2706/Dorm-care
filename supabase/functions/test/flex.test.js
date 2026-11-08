@@ -51,11 +51,18 @@ test('แจ้งผลการซ่อมมีรูปหัวการ�
 
 test('ทุกขั้นที่มีปุ่มเป็นการ์ด ปุ่มในการ์ดตรงกับ quick reply', () => {
   const cats = [{ code: 'PLUMBING', label: 'ประปา' }, { code: 'ELECTRICAL', label: 'ไฟฟ้า' }];
-  for (const m of [M.welcome(), M.help(), M.askBindCode(), M.askCategory(cats), M.askDetail(), M.askPhoto(3), M.photoReceived(1, 3), M.reportFailed(), M.bindingDone('A1-01')]) {
+  for (const m of [M.welcome(), M.welcome(true), M.help(), M.help(true), M.askBindCode(), M.askCategory(cats), M.askDetail(), M.askPhoto(3), M.photoReceived(1, 3), M.reportFailed(), M.bindingDone('A1-01')]) {
     assert.equal(m.type, 'flex');
     const inCard = m.contents.footer.contents.map((b) => b.action.text);
     assert.deepEqual(inCard, m.quickReply.items.map((i) => i.action.text));
     assert.ok(texts(m.contents).every((t) => typeof t === 'string' && t.length > 0));
   }
   assert.deepEqual(M.askPhoto(3).contents.footer.contents.map((b) => b.action.text), ['ข้าม', 'ยกเลิก']);
+});
+
+test('ยังไม่ผูกห้อง ต้อนรับและเมนูมีแค่ผูกเลขห้องกับติดต่อผู้ดูแล', () => {
+  const labels = (m) => m.contents.footer.contents.map((b) => b.action.text);
+  assert.deepEqual(labels(M.welcome()), ['ผูกเลขห้อง', 'ติดต่อผู้ดูแล']);
+  assert.deepEqual(labels(M.help()), ['ผูกเลขห้อง', 'ติดต่อผู้ดูแล']);
+  assert.ok(!labels(M.welcome(true)).includes('ผูกเลขห้อง'));
 });

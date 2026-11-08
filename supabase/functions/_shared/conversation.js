@@ -91,11 +91,13 @@ function handleCommand(text, binding, startedAt) {
  * @param {{kind:'text', text:string, at?:number}|{kind:'image', messageId:string, at?:number}|{kind:'follow'}} event
  *   at = เวลาของเหตุการณ์ (ms) ใช้เป็นรหัสร่างแจ้งซ่อม ทำให้กดยืนยันซ้ำแล้วไม่เกิดใบงานซ้ำ
  */
+const isBound = (binding) => Boolean(binding && binding.status === 'ACTIVE');
+
 export function handle(session, binding, event) {
   const current = session && session.state ? session : idle();
 
   if (event.kind === 'follow') {
-    return { session: idle(), effects: [reply(M.welcome())] };
+    return { session: idle(), effects: [reply(M.welcome(isBound(binding)))] };
   }
 
   const text = event.kind === 'text' ? String(event.text || '').trim() : null;
@@ -166,6 +168,6 @@ export function handle(session, binding, event) {
     }
 
     default:
-      return { session: idle(), effects: [reply(M.help())] };
+      return { session: idle(), effects: [reply(M.help(isBound(binding)))] };
   }
 }
