@@ -61,7 +61,7 @@ function fakeLine() {
     replies,
     failContent,
     client: {
-      reply: async (token, messages) => replies.push(...messages.map((m) => m.text)),
+      reply: async (token, messages) => replies.push(...messages.map((m) => m.text ?? m.altText)),
       getProfile: async () => ({ displayName: 'สมชาย' }),
       getContent: async (id) => {
         if (failContent.has(id)) throw new Error('LINE content 500');

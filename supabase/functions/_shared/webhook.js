@@ -92,6 +92,7 @@ export function createWebhook({ rpc, storage, logger }) {
     return M.statusList(
       rows.map((t) => ({
         ticketNo: t.ticket_no,
+        status: t.status,
         categoryLabel: categoryLabel(t.category),
         statusLabel: statusLabel(t.status, t.assigned),
         createdAtText: t.created_at ? thaiDateTime(new Date(t.created_at)) : '-',
@@ -144,7 +145,11 @@ export function createWebhook({ rpc, storage, logger }) {
         return M.text('บัญชีนี้ยังไม่ได้ผูกห้องที่ใช้งานอยู่ จึงส่งแจ้งซ่อมไม่ได้ กรุณาติดต่อผู้ดูแล');
       }
       await setIdle(userId);
-      return M.ticketCreated(r.ticket_no, r.room_no);
+      return M.ticketCreated(r.ticket_no, r.room_no, {
+        categoryLabel: categoryLabel(draft.category),
+        description: draft.description,
+        createdAtText: thaiDateTime(new Date()),
+      });
     } catch (err) {
       logger.error('submitReport failed', { userId, error: err.message });
       return M.reportFailed();

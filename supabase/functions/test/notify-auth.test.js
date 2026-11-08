@@ -27,7 +27,7 @@ function notifyDb() {
 
 function lineClient() {
   const sent = [];
-  return { sent, push: async (to, msgs, key) => { if (lineClient.down) throw new Error('LINE 500'); sent.push({ to, key, text: msgs[0].text, msgs }); } };
+  return { sent, push: async (to, msgs, key) => { if (lineClient.down) throw new Error('LINE 500'); sent.push({ to, key, text: msgs[0].text ?? msgs[0].altText, msgs }); } };
 }
 
 test('แจ้งผลสำเร็จ แล้วเรียกซ้ำด้วยรหัสเดิมไม่ส่งซ้ำ', async () => {
@@ -68,7 +68,7 @@ test('แจ้งผลพร้อมรูปหลังซ่อม ส่�
   assert.deepEqual(asked, { id: 'r_1', seconds: 30 * 86400 });
   const msgs = client.sent[0].msgs;
   assert.equal(msgs.length, 4);
-  assert.match(msgs[0].text, /รูปหลังซ่อม 3 รูป[\s\S]*30 วัน/);
+  assert.match(msgs[0].altText, /รูปหลังซ่อม 3 รูป[\s\S]*30 วัน/);
   assert.deepEqual(msgs[1], { type: 'image', originalContentUrl: 'https://x.test/1.jpg', previewImageUrl: 'https://x.test/1.jpg' });
 });
 
