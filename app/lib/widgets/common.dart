@@ -68,7 +68,8 @@ class TicketTile extends StatelessWidget {
                     child: Text('ห้อง ${ticket.roomNo}', style: theme.textTheme.titleMedium?.copyWith(fontSize: 19, fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(width: 8),
-                  Flexible(child: StageChip(ticket)),
+                  // จำกัดความกว้างป้ายไว้ ป้ายยาวจะตัดบรรทัดแทนการดันเลขห้องจนล้น
+                  ConstrainedBox(constraints: const BoxConstraints(maxWidth: 190), child: StageChip(ticket)),
                 ]),
                 const SizedBox(height: 4),
                 Text(ticket.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
