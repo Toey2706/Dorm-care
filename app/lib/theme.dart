@@ -45,7 +45,19 @@ ThemeData buildTheme() {
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48), shape: roundedButton),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 52),
+        shape: roundedButton,
+        textStyle: const TextStyle(fontFamily: fontFamily, fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    ),
+    // ปุ่มตัวอักษรที่เหลือ (ออกจากระบบ ส่งรหัสอีกครั้ง) ให้พื้นที่กดอย่างน้อย 48 ตามขนาดนิ้ว
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        textStyle: const TextStyle(fontFamily: fontFamily, fontSize: 16, fontWeight: FontWeight.w500),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,

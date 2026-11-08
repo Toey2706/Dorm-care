@@ -147,11 +147,23 @@ Future<bool> confirmDialog(BuildContext context, String title, String body, Stri
     builder: (context) => AlertDialog(
       title: Text(title),
       content: Text(body),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
-        FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(okLabel)),
-      ],
+      // ปุ่มยกเลิกต้องกดง่ายเท่าปุ่มยืนยัน จึงให้กว้างเต็มและสูงเท่ากัน วางซ้อนกันแทนการวางข้างกัน
+      actions: [dialogButtons(
+        primary: FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(okLabel)),
+        secondary: OutlinedButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+      )],
     ),
   );
   return ok ?? false;
+}
+
+Widget dialogButtons({required Widget primary, required Widget secondary}) {
+  return SizedBox(
+    width: double.maxFinite,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [primary, const SizedBox(height: 8), secondary],
+    ),
+  );
 }
