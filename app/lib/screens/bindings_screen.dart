@@ -86,13 +86,14 @@ class BindingsScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text('ใช้ได้ครั้งเดียว หมดอายุ ${thaiDate(expiresAt)}\nแจ้งรหัสนี้ให้ผู้พักกด "ผูกเลขห้อง" ใน LINE แล้วพิมพ์รหัส\nรหัสจะแสดงครั้งเดียว ระบบไม่เก็บตัวรหัส'),
           ]),
-          actions: [
-            TextButton(
+          actions: [dialogButtons(
+            primary: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('เสร็จ')),
+            secondary: OutlinedButton.icon(
               onPressed: () => Clipboard.setData(ClipboardData(text: code)),
-              child: const Text('คัดลอก'),
+              icon: const Icon(Icons.copy),
+              label: const Text('คัดลอก'),
             ),
-            FilledButton(onPressed: () => Navigator.pop(context), child: const Text('เสร็จ')),
-          ],
+          )],
         ),
       );
     } catch (e) {
