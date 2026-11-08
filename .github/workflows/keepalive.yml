@@ -15,8 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # ใช้คีย์สาธารณะตัวเดียวกับที่ฝังในแอปอยู่แล้ว ส่งแค่ apikey (คีย์แบบ publishable ใส่ใน Authorization ไม่ได้)
-      # RLS ทำให้ได้ผลว่างกลับมา แต่นับเป็นการใช้งานฐานข้อมูล
+      # ใช้ anon key ตัวเดียวกับที่ฝังในแอปอยู่แล้ว ไม่ต้องมีความลับเพิ่ม
       - name: เรียกฐานข้อมูล
         run: |
           URL=$(jq -r .SUPABASE_URL app/config.json)
