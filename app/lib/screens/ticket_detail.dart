@@ -66,6 +66,7 @@ class _Body extends StatelessWidget {
           Align(alignment: Alignment.centerLeft, child: StageChip(t)),
           const SizedBox(height: 8),
           row('ห้อง', t.roomNo),
+          _RoomRepeat(t.roomNo),
           row('หมวดงาน', t.categoryLabel),
           row('แจ้งเมื่อ', thaiDate(t.createdAt)),
           row('ผู้แจ้ง', t.reporterName.isEmpty ? 'ผู้พัก (LINE)' : '${t.reporterName} (LINE)'),
@@ -236,5 +237,31 @@ class _Actions extends StatelessWidget {
     );
     if (chosen == null || !context.mounted) return;
     await runAction(context, () => Api.instance.assign(ticket.id, chosen.id), success: 'มอบหมายให้ ${chosen.name} แล้ว');
+  }
+}
+
+/// ห้องที่แจ้งซ่อมบ่อยอาจมีปัญหาที่ต้นเหตุ บอกจำนวนครั้งใน 90 วันใต้เลขห้อง
+/// แสดงเฉพาะเมื่อมีใบอื่นนอกจากใบนี้ และเน้นสีเมื่อตั้งแต่ 3 ครั้งขึ้นไป
+class _RoomRepeat extends StatelessWidget {
+  const _RoomRepeat(this.roomNo);
+  final String roomNo;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<int>(
+      future: Api.instance.roomTicketCount(roomNo),
+      builder: (context, snap) {
+        final n = snap.data ?? 0;
+        if (n < 2) return const SizedBox.shrink();
+        final warn = n >= 3;
+        return Padding(
+          padding: const EdgeInsets.only(left: 96, bottom: 4),
+          child: Text(
+            'ห้องนี้แจ้งซ่อม $n ครั้งใน 90 วันที่ผ่านมา',
+            style: TextStyle(fontSize: 14, color: warn ? const Color(0xFFB54708) : mutedText, fontWeight: warn ? FontWeight.w600 : FontWeight.w400),
+          ),
+        );
+      },
+    );
   }
 }

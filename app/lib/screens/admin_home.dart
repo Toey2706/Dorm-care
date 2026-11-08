@@ -64,6 +64,7 @@ class _TicketsPage extends StatefulWidget {
 class _TicketsPageState extends State<_TicketsPage> {
   static const pageSize = 30;
   _Filter _filter = _Filter.open;
+  bool _oldestFirst = false; // งานค้างเรียงเก่าสุดก่อน ไว้ไล่เคลียร์งานที่รอนาน
   int _completedLimit = pageSize;
   final _searchController = TextEditingController();
   Future<List<Ticket>>? _searchResult;
@@ -109,16 +110,13 @@ class _TicketsPageState extends State<_TicketsPage> {
   }
 
   List<Ticket> _apply(List<Ticket> items) {
-    switch (_filter) {
-      case _Filter.pending:
-        return items.where((t) => t.stage == TicketStage.pending).toList();
-      case _Filter.repairing:
-        return items.where((t) => t.stage == TicketStage.repairing).toList();
-      case _Filter.open:
-      case _Filter.notNotified:
-      case _Filter.completed:
-        return items;
-    }
+    final list = switch (_filter) {
+      _Filter.pending => items.where((t) => t.stage == TicketStage.pending).toList(),
+      _Filter.repairing => items.where((t) => t.stage == TicketStage.repairing).toList(),
+      _Filter.open || _Filter.notNotified || _Filter.completed => List.of(items),
+    };
+    // ข้อมูลมาเรียงใหม่สุดก่อนอยู่แล้ว กลับลำดับอย่างเดียวพอ (ไม่ใช้กับงานเสร็จที่โหลดทีละหน้า)
+    return _oldestFirst && _filter != _Filter.completed ? list.reversed.toList() : list;
   }
 
   String _countLabel(_Filter f, Map<String, int>? c) {
@@ -154,6 +152,12 @@ class _TicketsPageState extends State<_TicketsPage> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Row(children: [
             Expanded(child: Text('สวัสดี ${widget.me.name} (ผู้ดูแล)', style: Theme.of(context).textTheme.titleMedium)),
+            if (_searchResult == null && _filter != _Filter.completed)
+              TextButton.icon(
+                onPressed: () => setState(() => _oldestFirst = !_oldestFirst),
+                icon: const Icon(Icons.swap_vert),
+                label: Text(_oldestFirst ? 'เก่าสุดก่อน' : 'ใหม่สุดก่อน'),
+              ),
             IconButton(tooltip: 'รีเฟรชตัวเลข', onPressed: _refreshCounts, icon: const Icon(Icons.refresh)),
           ]),
         ),
