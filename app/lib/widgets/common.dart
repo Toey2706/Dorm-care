@@ -2,30 +2,37 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/api.dart';
+import '../theme.dart';
 
-/// ป้ายสถานะ ใช้คำเดียวกับ LINE
+/// ป้ายสถานะ ใช้คำเดียวกับ LINE แสดงสี ไอคอน และข้อความคู่กันเสมอ คนที่แยกสีไม่ออกก็อ่านได้
 class StageChip extends StatelessWidget {
   const StageChip(this.ticket, {super.key});
   final Ticket ticket;
 
-  static (String, Color) style(Ticket t) {
+  static (String, StageStyle) style(Ticket t) {
     switch (t.stage) {
       case TicketStage.pending:
-        return (t.assignedTo == null ? 'รอดำเนินการ · ยังไม่มอบหมาย' : 'รอดำเนินการ', const Color(0xFFB26A00));
+        return (t.assignedTo == null ? 'รอดำเนินการ · ยังไม่มอบหมาย' : 'รอดำเนินการ', StageStyle.pending);
       case TicketStage.repairing:
-        return ('กำลังซ่อม', const Color(0xFF1E5BB8));
+        return ('กำลังซ่อม', StageStyle.repairing);
       case TicketStage.completed:
-        return (t.notifiedAt == null ? 'ซ่อมเสร็จ · รอแจ้ง LINE' : 'ซ่อมเสร็จแล้ว', const Color(0xFF2E7D32));
+        return t.notifiedAt == null ? ('ซ่อมเสร็จ · รอแจ้ง LINE', StageStyle.awaitingLine) : ('ซ่อมเสร็จแล้ว', StageStyle.done);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = style(ticket);
+    final (label, st) = style(ticket);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-      child: Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: st.background, borderRadius: BorderRadius.circular(14)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(st.icon, size: 15, color: st.foreground),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(label, style: TextStyle(color: st.foreground, fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+      ]),
     );
   }
 }
@@ -37,27 +44,43 @@ class TicketTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Expanded(child: Text('${ticket.ticketNo} · ห้อง ${ticket.roomNo}', style: Theme.of(context).textTheme.labelMedium)),
-                StageChip(ticket),
+          padding: const EdgeInsets.all(14),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(color: const Color(0xFFEEF3FA), borderRadius: BorderRadius.circular(12)),
+              child: Icon(categoryIcons[ticket.category] ?? Icons.handyman_outlined, color: brand),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // เลขห้องตัวใหญ่ เพราะเป็นสิ่งที่ผู้ดูแลมองหาก่อนเมื่อไล่รายการ
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(
+                    child: Text('ห้อง ${ticket.roomNo}', style: theme.textTheme.titleMedium?.copyWith(fontSize: 19, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(child: StageChip(ticket)),
+                ]),
+                const SizedBox(height: 4),
+                Text(ticket.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: 4),
+                Text(
+                  '${ticket.ticketNo} · ${ticket.categoryLabel} · ${thaiDate(ticket.createdAt)}'
+                  '${ticket.assignedToName == null ? '' : '\nช่าง: ${ticket.assignedToName}'}',
+                  style: theme.textTheme.bodySmall,
+                ),
               ]),
-              const SizedBox(height: 6),
-              Text(ticket.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 4),
-              Text('${ticket.categoryLabel} · ${thaiDate(ticket.createdAt)}', style: Theme.of(context).textTheme.bodySmall),
-              if (ticket.assignedToName != null)
-                Text('ช่าง: ${ticket.assignedToName}', style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
     );
@@ -80,7 +103,7 @@ class StoragePhotos extends StatelessWidget {
           FutureBuilder<String>(
             future: Api.instance.photoUrl(bucket, p),
             builder: (context, snap) => ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               child: SizedBox(
                 width: 96,
                 height: 96,
@@ -89,7 +112,7 @@ class StoragePhotos extends StatelessWidget {
                         onTap: () => showDialog(context: context, builder: (_) => Dialog(child: Image.network(snap.data!))),
                         child: Image.network(snap.data!, fit: BoxFit.cover),
                       )
-                    : const ColoredBox(color: Color(0xFFEDEDED), child: Icon(Icons.image_outlined)),
+                    : const ColoredBox(color: Color(0xFFE3E8EF), child: Icon(Icons.image_outlined, color: mutedText)),
               ),
             ),
           ),

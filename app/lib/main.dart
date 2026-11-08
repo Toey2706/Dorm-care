@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import 'theme.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,10 +35,8 @@ class DormCareApp extends StatelessWidget {
     return MaterialApp(
       title: 'ระบบแจ้งซ่อมหอพัก',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E3A9E)),
-        useMaterial3: true,
-      ),
+      theme: buildTheme(),
+      builder: constrainWidth,
       home: const AuthGate(),
     );
   }

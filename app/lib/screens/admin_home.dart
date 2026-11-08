@@ -165,7 +165,6 @@ class _TicketsPageState extends State<_TicketsPage> {
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               hintText: 'ค้นหาเลขที่ใบงาน (R2569-0041) หรือเลขห้อง',
-              border: const OutlineInputBorder(),
               isDense: true,
               suffixIcon: _searchResult == null
                   ? null
