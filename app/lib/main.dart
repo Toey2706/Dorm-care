@@ -15,6 +15,7 @@ import 'screens/otp_screen.dart';
 import 'screens/tech_home.dart';
 import 'services/api.dart';
 import 'services/auth_service.dart';
+import 'services/push_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,7 @@ Future<void> main() async {
   }
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
   await initializeDateFormatting('th');
+  await PushService.instance.init();
   runApp(const DormCareApp());
 }
 
@@ -36,6 +38,7 @@ class DormCareApp extends StatelessWidget {
       title: 'ระบบแจ้งซ่อมหอพัก',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      scaffoldMessengerKey: PushService.instance.messengerKey,
       builder: constrainWidth,
       home: const AuthGate(),
     );
@@ -92,6 +95,7 @@ class _AuthGateState extends State<AuthGate> {
     if (status.mustChangePassword) return const ChangePasswordScreen();
     final Staff? me = await Api.instance.me();
     if (me == null) return const NotRegisteredScreen();
+    unawaited(PushService.instance.register());
     return me.isAdmin ? AdminHome(me: me) : TechHome(me: me);
   }
 

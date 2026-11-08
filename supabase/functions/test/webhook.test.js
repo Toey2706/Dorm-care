@@ -77,7 +77,9 @@ function setup() {
   const saved = [];
   const errors = [];
   const menu = [];
+  const created = [];
   const hook = createWebhook({
+    onTicketCreated: (t) => created.push(t),
     rpc: db.rpc,
     storage: { save: async (path) => saved.push(path) },
     logger: { warn: () => {}, error: (m) => errors.push(m) },
@@ -95,7 +97,7 @@ function setup() {
   const say = (text, at) => send({ type: 'text', text }, at);
   const last = () => line.replies[line.replies.length - 1];
   const follow = () => hook.handleAll(line.client, [{ type: 'follow', webhookEventId: `f${++n}`, replyToken: `t${n}`, timestamp: 1000, source: { type: 'user', userId: 'U1' } }]);
-  return { db, line, saved, errors, hook, send, say, last, menu, follow };
+  return { db, line, saved, errors, hook, send, say, last, menu, follow, created };
 }
 
 async function reportUntilConfirm(t, photos = []) {
@@ -220,4 +222,15 @@ test('เปลี่ยนเมนูไม่สำเร็จ ผู้ใ�
   const r = await t.say('123456');
   assert.equal(r.ok, true);
   assert.match(t.last(), /ห้อง 305 เรียบร้อย/);
+});
+
+test('แจ้งพนักงานเมื่อมีใบงานใหม่ครั้งเดียว แม้กดยืนยันซ้ำ', async () => {
+  const t = setup();
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  await reportUntilConfirm(t);
+  await t.say('ยืนยัน');
+  await t.say('ยืนยัน');
+  assert.equal(t.created.length, 1);
+  assert.equal(t.created[0].room_no, '305');
+  assert.equal(t.created[0].category, 'PLUMBING');
 });
