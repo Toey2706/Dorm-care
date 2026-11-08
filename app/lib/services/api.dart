@@ -160,6 +160,13 @@ class Api {
     }
   }
 
+  /// จำนวนใบแจ้งซ่อมของห้องในช่วงที่ผ่านมา (รวมใบปัจจุบัน) ช่วยให้ผู้ดูแลเห็นปัญหาที่เกิดซ้ำ
+  Future<int> roomTicketCount(String roomNo, {int days = 90}) async {
+    final since = DateTime.now().toUtc().subtract(Duration(days: days)).toIso8601String();
+    final rows = await _sb.from('tickets').select('id').eq('room_no', roomNo).gte('created_at', since).limit(100);
+    return rows.length;
+  }
+
   Future<void> assign(String ticketId, String technicianId) async {
     await _rpc('assign_ticket', {'p_ticket_id': ticketId, 'p_technician_id': technicianId});
     _pingStaff('assigned', ticketId);
