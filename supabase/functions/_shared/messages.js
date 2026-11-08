@@ -6,7 +6,6 @@ const quickReply = (labels) => ({
   items: labels.map((label) => ({ type: 'action', action: { type: 'message', label, text: label } })),
 });
 
-const withQuick = (value, labels) => ({ ...text(value), quickReply: quickReply(labels) });
 
 // สีเดียวกับแอปพนักงาน (app/lib/theme.dart) ผู้พักเห็นสถานะสีเดียวกับที่ผู้ดูแลเห็น
 const BRAND = '#1E4E8C';
@@ -75,33 +74,81 @@ const button = (label, style) => ({
   action: { type: 'message', label, text: label },
 });
 
+/**
+ * การ์ดคำถามแต่ละขั้น ปุ่มในการ์ดกับ quick reply ส่งข้อความเดียวกัน
+ * LINE คอมพิวเตอร์ไม่แสดง quick reply ผู้ใช้บนคอมจึงกดปุ่มในการ์ดแทนได้
+ */
+function card(alt, { title, subtitle, lines = [], buttons }) {
+  const body = lines.map((l) => ({ type: 'text', text: l, size: 'sm', color: INK, wrap: true }));
+  const b = bubble({ header: header(title, subtitle), body: body.length ? body : [{ type: 'filler' }], footer: buttons.map(([l, st]) => button(l, st)) });
+  if (!body.length) delete b.body;
+  return { ...flex(alt, b), quickReply: quickReply(buttons.map(([l]) => l)) };
+}
+
 export function welcome() {
-  return text(
+  const alt =
     'ยินดีต้อนรับสู่ระบบแจ้งซ่อมหอพัก\n' +
-      '1) กด "ผูกเลขห้อง" แล้วพิมพ์รหัส 6 หลักที่ได้รับจากผู้ดูแล\n' +
-      '2) กด "แจ้งซ่อม" เพื่อแจ้งปัญหา\n' +
-      '3) กด "ติดตามงาน" เพื่อดูสถานะ'
-  );
+    '1) กด "ผูกเลขห้อง" แล้วพิมพ์รหัส 6 หลักที่ได้รับจากผู้ดูแล\n' +
+    '2) กด "แจ้งซ่อม" เพื่อแจ้งปัญหา\n' +
+    '3) กด "ติดตามงาน" เพื่อดูสถานะ';
+  return card(alt, {
+    title: 'ยินดีต้อนรับ',
+    subtitle: 'ระบบแจ้งซ่อมหอพัก',
+    lines: ['1) กด "ผูกเลขห้อง" แล้วพิมพ์รหัส 6 หลักที่ได้รับจากผู้ดูแล', '2) กด "แจ้งซ่อม" เพื่อแจ้งปัญหา', '3) กด "ติดตามงาน" เพื่อดูสถานะ'],
+    buttons: [['ผูกเลขห้อง', 'primary'], ['แจ้งซ่อม', 'secondary'], ['ติดตามงาน', 'secondary']],
+  });
 }
 
 export function help() {
-  return withQuick('เลือกเมนูที่ต้องการ', ['แจ้งซ่อม', 'ติดตามงาน', 'ผูกเลขห้อง', 'ติดต่อผู้ดูแล']);
+  return card('เลือกเมนูที่ต้องการ', {
+    title: 'เมนู',
+    subtitle: 'เลือกเมนูที่ต้องการ',
+    buttons: [['แจ้งซ่อม', 'primary'], ['ติดตามงาน', 'secondary'], ['ผูกเลขห้อง', 'secondary'], ['ติดต่อผู้ดูแล', 'secondary']],
+  });
 }
 
 export function askBindCode() {
-  return withQuick('กรุณาพิมพ์รหัสผูกห้อง 6 หลักที่ได้รับจากผู้ดูแลหอพัก', ['ยกเลิก']);
+  return card('กรุณาพิมพ์รหัสผูกห้อง 6 หลักที่ได้รับจากผู้ดูแลหอพัก', {
+    title: 'ผูกเลขห้อง',
+    subtitle: 'พิมพ์รหัส 6 หลัก',
+    lines: ['พิมพ์รหัสผูกห้อง 6 หลักที่ได้รับจากผู้ดูแลหอพักลงในช่องแชต'],
+    buttons: [['ยกเลิก', 'link']],
+  });
 }
 
 export function askCategory(categories) {
-  return withQuick('เลือกหมวดปัญหา', [...categories.map((c) => c.label), 'ยกเลิก']);
+  return card('เลือกหมวดปัญหา', {
+    title: 'แจ้งซ่อม ขั้นที่ 1 จาก 4',
+    subtitle: 'เลือกหมวดปัญหา',
+    buttons: [...categories.map((c) => [c.label, 'secondary']), ['ยกเลิก', 'link']],
+  });
+}
+
+export function askDetail() {
+  return card('กรุณาพิมพ์รายละเอียดปัญหา เช่น ตำแหน่งและอาการที่พบ\n(พิมพ์ "ยกเลิก" เพื่อยกเลิก)', {
+    title: 'แจ้งซ่อม ขั้นที่ 2 จาก 4',
+    subtitle: 'พิมพ์รายละเอียดปัญหา',
+    lines: ['พิมพ์ลงในช่องแชต บอกตำแหน่งและอาการที่พบ เช่น ก๊อกอ่างล้างหน้ารั่ว น้ำหยดตลอด'],
+    buttons: [['ยกเลิก', 'link']],
+  });
 }
 
 export function askPhoto(max) {
-  return withQuick(`ส่งรูปประกอบได้สูงสุด ${max} รูป หรือกด "ข้าม" ถ้าไม่มีรูป`, ['ข้าม', 'ยกเลิก']);
+  return card(`ส่งรูปประกอบได้สูงสุด ${max} รูป หรือกด "ข้าม" ถ้าไม่มีรูป`, {
+    title: 'แจ้งซ่อม ขั้นที่ 3 จาก 4',
+    subtitle: 'ส่งรูปประกอบ',
+    lines: [`ส่งรูปได้สูงสุด ${max} รูป ถ้าไม่มีรูปกด "ข้าม"`],
+    buttons: [['ข้าม', 'secondary'], ['ยกเลิก', 'link']],
+  });
 }
 
 export function photoReceived(count, max) {
-  return withQuick(`ได้รับรูปแล้ว ${count}/${max} รูป ส่งเพิ่มได้ หรือกด "เสร็จ"`, ['เสร็จ', 'ยกเลิก']);
+  return card(`ได้รับรูปแล้ว ${count}/${max} รูป ส่งเพิ่มได้ หรือกด "เสร็จ"`, {
+    title: 'แจ้งซ่อม ขั้นที่ 3 จาก 4',
+    subtitle: `ได้รับรูปแล้ว ${count}/${max}`,
+    lines: ['ส่งรูปเพิ่มได้ หรือกด "เสร็จ" เพื่อไปขั้นถัดไป'],
+    buttons: [['เสร็จ', 'primary'], ['ยกเลิก', 'link']],
+  });
 }
 
 export function confirmReport(draft, categories) {
@@ -115,9 +162,9 @@ export function confirmReport(draft, categories) {
     `รูปภาพ: ${photos} รูป\n\n` +
     'กด "ยืนยัน" เพื่อส่งแจ้งซ่อม';
   const card = bubble({
-    header: header('ตรวจสอบก่อนส่ง', 'ขั้นสุดท้าย'),
+    header: header('แจ้งซ่อม ขั้นที่ 4 จาก 4', 'ตรวจสอบก่อนส่ง'),
     body: [row('หมวด', categoryText), row('รายละเอียด', draft.description), row('รูปภาพ', `${photos} รูป`)],
-    footer: [button('ยืนยัน', 'primary'), button('ยกเลิก', 'secondary')],
+    footer: [button('ยืนยัน', 'primary'), button('ยกเลิก', 'link')],
   });
   // quick reply ยังคงไว้ เพราะผู้ใช้บางคนคุ้นกับปุ่มด้านล่าง ส่วนปุ่มในการ์ดใช้ได้บน LINE คอมพิวเตอร์ที่ไม่มี quick reply
   return { ...flex(alt, card), quickReply: quickReply(['ยืนยัน', 'ยกเลิก']) };
@@ -141,7 +188,12 @@ export function ticketCreated(ticketNo, roomNo, details = {}) {
 }
 
 export function reportFailed() {
-  return withQuick('ส่งแจ้งซ่อมไม่สำเร็จ ข้อมูลที่กรอกยังอยู่ กด "ยืนยัน" เพื่อลองอีกครั้ง', ['ยืนยัน', 'ยกเลิก']);
+  return card('ส่งแจ้งซ่อมไม่สำเร็จ ข้อมูลที่กรอกยังอยู่ กด "ยืนยัน" เพื่อลองอีกครั้ง', {
+    title: 'ส่งไม่สำเร็จ',
+    subtitle: 'ลองอีกครั้ง',
+    lines: ['ข้อมูลที่กรอกยังอยู่ กด "ยืนยัน" เพื่อส่งอีกครั้ง'],
+    buttons: [['ยืนยัน', 'primary'], ['ยกเลิก', 'link']],
+  });
 }
 
 export function statusList(rows) {
@@ -178,7 +230,12 @@ export function contact(info) {
 }
 
 export function bindingDone(roomNo) {
-  return text(`ผูกบัญชีกับห้อง ${roomNo} เรียบร้อยแล้ว กด "แจ้งซ่อม" เพื่อแจ้งปัญหาได้เลย`);
+  return card(`ผูกบัญชีกับห้อง ${roomNo} เรียบร้อยแล้ว กด "แจ้งซ่อม" เพื่อแจ้งปัญหาได้เลย`, {
+    title: 'ผูกเลขห้องเรียบร้อย',
+    subtitle: `ห้อง ${roomNo}`,
+    lines: ['กด "แจ้งซ่อม" เพื่อแจ้งปัญหาได้เลย'],
+    buttons: [['แจ้งซ่อม', 'primary'], ['ติดตามงาน', 'secondary']],
+  });
 }
 
 export function bindCodeInvalid() {
