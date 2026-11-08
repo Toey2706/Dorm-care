@@ -1,5 +1,6 @@
 // ผู้ดูแลเรียกครั้งเดียวหลังเปลี่ยนรูปเมนู หรือเมื่อต้องการให้เมนูของทุกคนตรงกับสถานะผูกห้องอีกครั้ง
-// ตรวจสิทธิ์ผู้ดูแลด้วย require_staff ในฐานข้อมูล แบบเดียวกับฟังก์ชันอื่นของแอป
+// ตรวจสิทธิ์ด้วย is_admin() ในฐานข้อมูล ซึ่งนับเฉพาะผู้ดูแลที่ยืนยัน OTP ใน session นี้แล้ว
+// (require_staff ไม่ได้เปิดให้ role authenticated เรียกตรง)
 import { jsonHandler } from '../_shared/http.js';
 import { richMenuApi, setupRichMenus } from '../_shared/richmenu.js';
 import { env, rpcOf, serviceClient, userClient } from '../_shared/deno.ts';
@@ -9,7 +10,8 @@ const IMAGE_BASE = 'https://raw.githubusercontent.com/Toey2706/Dorm-care/main/su
 
 Deno.serve(
   jsonHandler(async (_body: unknown, req: Request) => {
-    await rpcOf(userClient(req.headers.get('Authorization') ?? ''))('require_staff', { p_role: 'ADMIN' });
+    const isAdmin = await rpcOf(userClient(req.headers.get('Authorization') ?? ''))('is_admin');
+    if (isAdmin !== true) throw Object.assign(new Error('เฉพาะผู้ดูแลที่ยืนยันตัวตนแล้ว'), { status: 403, code: 'permission-denied' });
 
     const db = serviceClient();
     const { data, error } = await db.from('line_bindings').select('line_user_id, status');
