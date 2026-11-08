@@ -41,14 +41,20 @@ class Api {
   /// Stream.multi ทำให้ StreamBuilder ฟังใหม่ได้ทุกครั้งที่สลับตัวกรอง เหมือน stream เดิมของ Supabase
   Stream<List<Ticket>> _liveTickets(Future<List<Map<String, dynamic>>> Function() fetch) => Stream.multi((out) {
         var seq = 0;
+        var shown = false;
         Future<void> load() async {
           final mine = ++seq;
           try {
             final rows = await fetch();
             // ผลของคำขอเก่าที่กลับมาช้ากว่าคำขอใหม่ต้องทิ้ง ไม่งั้นรายการจะย้อนกลับไปเป็นข้อมูลเก่า
-            if (mine == seq && !out.isClosed) out.add(rows.map(Ticket.fromJson).toList());
+            if (mine == seq && !out.isClosed) {
+              out.add(rows.map(Ticket.fromJson).toList());
+              shown = true;
+            }
           } catch (e, st) {
-            if (!out.isClosed) out.addError(e, st);
+            // แสดงข้อผิดพลาดเฉพาะตอนยังไม่เคยโหลดได้ ถ้าเคยมีรายการแล้ว (เช่น โทเคนหมดอายุตอนแท็บถูกพักไว้นาน)
+            // คงรายการเดิมไว้ แล้วรอบถัดไปจะโหลดใหม่เองหลังต่ออายุโทเคน
+            if (!shown && !out.isClosed) out.addError(e, st);
           }
         }
 
@@ -72,13 +78,14 @@ class Api {
 
   /// งานที่ซ่อมเสร็จแล้ว แบ่งหน้า (เพิ่ม limit เมื่อกด "โหลดเพิ่ม")
   /// ช่างเห็นเฉพาะงานของตัวเองอยู่แล้วจาก RLS ไม่ต้องกรองซ้ำ
-  Stream<List<Ticket>> completedTickets(int limit) => _sb
+  /// ใช้ _liveTickets แทน stream() ของ Supabase เพราะ stream() ส่ง error ขึ้นจอทันทีเมื่อช่อง realtime หลุด
+  /// (เจอเมื่อเปิดแท็บค้างไว้นานจนโทเคนหมดอายุ หน้ารายการค้างที่ข้อความโหลดไม่สำเร็จ)
+  Stream<List<Ticket>> completedTickets(int limit) => _liveTickets(() => _sb
       .from('tickets')
-      .stream(primaryKey: ['id'])
+      .select()
       .eq('status', 'COMPLETED')
       .order('created_at', ascending: false)
-      .limit(limit)
-      .map((rows) => rows.map(Ticket.fromJson).toList());
+      .limit(limit));
 
   // ใช้ _liveTickets เพราะเมื่อผู้ดูแลเปลี่ยนช่าง งานต้องหายจากรายการของช่างคนเดิม
   Stream<List<Ticket>> myOpenTickets(String userId) => _liveTickets(() => _sb
@@ -116,31 +123,61 @@ class Api {
     return {'PENDING': r[0], 'REPAIRING': r[1], 'COMPLETED': r[2], 'NOT_NOTIFIED': r[3]};
   }
 
-  Stream<Ticket?> ticket(String id) => _sb
+  Stream<Ticket?> ticket(String id) => _resilient(() => _sb
       .from('tickets')
       .stream(primaryKey: ['id'])
       .eq('id', id)
-      .map((rows) => rows.isEmpty ? null : Ticket.fromJson(rows.first));
+      .map((rows) => rows.isEmpty ? null : Ticket.fromJson(rows.first)));
 
   // supabase_flutter เรียงจากมากไปน้อยถ้าไม่ระบุ ascending ทุกรายการในไฟล์นี้จึงระบุทิศทางเอง
-  Stream<List<HistoryEntry>> history(String ticketId) => _sb
+  Stream<List<HistoryEntry>> history(String ticketId) => _resilient(() => _sb
       .from('ticket_history')
       .stream(primaryKey: ['id'])
       .eq('ticket_id', ticketId)
       .order('at', ascending: true)
-      .map((rows) => rows.map(HistoryEntry.fromJson).toList());
+      .map((rows) => rows.map(HistoryEntry.fromJson).toList()));
 
   Future<List<Staff>> technicians() async {
     final rows = await _sb.from('staff').select().eq('role', 'TECHNICIAN').eq('active', true).order('name', ascending: true);
     return rows.map(Staff.fromJson).toList();
   }
 
-  Stream<List<Binding>> bindings(String status) => _sb
+  Stream<List<Binding>> bindings(String status) => _resilient(() => _sb
       .from('line_bindings')
       .stream(primaryKey: ['id'])
       .eq('status', status)
       .order('room_no', ascending: true)
-      .map((rows) => rows.map(Binding.fromJson).toList());
+      .map((rows) => rows.map(Binding.fromJson).toList()));
+
+  /// stream() ของ Supabase ส่ง error แล้วหยุดเมื่อช่อง realtime หลุด เช่น โทเคนหมดอายุตอนแท็บถูกพักไว้นาน
+  /// ตัวห่อนี้ต่อใหม่เองทุก 5 วินาที ถ้าเคยแสดงข้อมูลแล้วจะคงข้อมูลเดิมไว้ ไม่ขึ้นข้อความผิดพลาด
+  Stream<T> _resilient<T>(Stream<T> Function() make) => Stream.multi((out) {
+        StreamSubscription<T>? sub;
+        Timer? retry;
+        var shown = false;
+        void listen() {
+          sub = make().listen(
+            (v) {
+              shown = true;
+              out.add(v);
+            },
+            onError: (Object e, StackTrace st) {
+              if (!shown) out.addError(e, st);
+              sub?.cancel();
+              retry?.cancel();
+              retry = Timer(const Duration(seconds: 5), () {
+                if (!out.isClosed) listen();
+              });
+            },
+          );
+        }
+
+        listen();
+        out.onCancel = () {
+          retry?.cancel();
+          return sub?.cancel();
+        };
+      });
 
   Future<List<String>> rooms() async {
     final rows = await _sb.from('rooms').select('room_no').eq('active', true).order('room_no', ascending: true);
