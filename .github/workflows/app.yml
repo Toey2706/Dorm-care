@@ -46,6 +46,8 @@ jobs:
         run: flutter build web --release --base-href /${{ github.event.repository.name }}/ --dart-define-from-file=config.json
       - name: build APK
         run: flutter build apk --release --dart-define-from-file=config.json
+      # วาง APK ไว้บนเว็บด้วย ให้โหลดได้ที่ลิงก์เดิมเสมอโดยไม่ต้องล็อกอิน GitHub
+      - run: cp build/app/outputs/flutter-apk/app-release.apk build/web/dorm-care.apk
       - uses: actions/upload-artifact@v4
         with:
           name: dorm-care-android
