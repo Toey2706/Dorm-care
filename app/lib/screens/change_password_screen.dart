@@ -66,14 +66,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   TextField(
                     controller: _password,
                     obscureText: true,
-                    decoration: const InputDecoration(labelText: 'รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _confirm,
                     obscureText: true,
                     onSubmitted: (_) => _save(),
-                    decoration: const InputDecoration(labelText: 'ยืนยันรหัสผ่านใหม่', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'ยืนยันรหัสผ่านใหม่'),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),

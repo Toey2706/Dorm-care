@@ -119,7 +119,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       maxLength: 6,
                       autofillHints: const [AutofillHints.oneTimeCode],
                       onSubmitted: (_) => _verify(),
-                      decoration: const InputDecoration(labelText: 'รหัส 6 หลัก', border: OutlineInputBorder(), counterText: ''),
+                      decoration: const InputDecoration(labelText: 'รหัส 6 หลัก', counterText: ''),
                     ),
                     const SizedBox(height: 12),
                     FilledButton(onPressed: _busy ? null : _verify, child: const Text('ยืนยัน')),

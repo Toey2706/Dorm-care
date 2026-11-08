@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import 'forgot_password_screen.dart';
+import '../theme.dart';
 
 /// ขั้นที่ 1: อีเมลและรหัสผ่าน ผ่านแล้ว AuthGate พาไปหน้า OTP (หรือเข้าเลยถ้าเครื่องนี้เคยยืนยันภายใน 30 วัน)
 class LoginScreen extends StatefulWidget {
@@ -55,15 +56,25 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('ระบบแจ้งซ่อมหอพัก', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
+                  Center(
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(color: brand, borderRadius: BorderRadius.circular(20)),
+                      child: const Icon(Icons.home_repair_service_outlined, color: Colors.white, size: 38),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('ระบบแจ้งซ่อมหอพัก',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center),
                   const SizedBox(height: 4),
-                  const Text('สำหรับผู้ดูแลหอพักและช่างซ่อมบำรุง', textAlign: TextAlign.center),
+                  Text('สำหรับผู้ดูแลหอพักและช่างซ่อมบำรุง', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 32),
                   TextField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(labelText: 'อีเมล', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'อีเมล'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -73,7 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
                       labelText: 'รหัสผ่าน',
-                      border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: Icon(_show ? Icons.visibility_off : Icons.visibility),
                         onPressed: () => setState(() => _show = !_show),
@@ -87,10 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
                   FilledButton(
                     onPressed: _busy ? null : _submit,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(_busy ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'),
-                    ),
+                    child: Text(_busy ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'),
                   ),
                   const SizedBox(height: 8),
                   TextButton(
