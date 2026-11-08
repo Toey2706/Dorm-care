@@ -3,6 +3,8 @@ import { verifySignature, createClient as lineClient } from '../_shared/line.js'
 import { createWebhook } from '../_shared/webhook.js';
 import { ALIAS, richMenuApi } from '../_shared/richmenu.js';
 import { env, logger, rpcOf, serviceClient } from '../_shared/deno.ts';
+import { staffMessage } from '../_shared/fcm.js';
+import { staffPush } from '../_shared/staff-push.ts';
 
 const db = serviceClient();
 const menus = richMenuApi(env('LINE_CHANNEL_ACCESS_TOKEN'));
@@ -21,6 +23,14 @@ const webhook = createWebhook({
       if (id) await menus.link(userId, id); // ยังไม่ได้รัน line-richmenu-setup ก็ข้ามไป
     },
     toDefault: (userId: string) => menus.unlink(userId),
+  },
+  // ส่งแจ้งเตือนหลังตอบผู้พักไปแล้วได้ waitUntil ให้ฟังก์ชันทำงานต่อจนส่งเสร็จ ผู้พักไม่ต้องรอ
+  onTicketCreated(ticket: { id: string; ticket_no: string; room_no: string; category: string }) {
+    const job = staffPush(db)
+      .toAdmins(staffMessage('created', ticket))
+      .catch((err: Error) => logger.warn('staff push failed', { error: err.message }));
+    // @ts-ignore EdgeRuntime มีเฉพาะบน Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(job);
   },
 });
 

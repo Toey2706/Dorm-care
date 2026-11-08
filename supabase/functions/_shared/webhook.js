@@ -43,7 +43,7 @@ function toConversationEvent(event) {
  */
 const BOUND_ONLY = new Set(['แจ้งซ่อม', 'ติดตามงาน']);
 
-export function createWebhook({ rpc, storage, logger, richMenu = null }) {
+export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketCreated = null }) {
   const setIdle = (userId) => rpc('line_set_idle', { p_user_id: userId });
 
   async function syncMenu(userId, bound) {
@@ -166,6 +166,14 @@ export function createWebhook({ rpc, storage, logger, richMenu = null }) {
         return M.text('บัญชีนี้ยังไม่ได้ผูกห้องที่ใช้งานอยู่ จึงส่งแจ้งซ่อมไม่ได้ กรุณาติดต่อผู้ดูแล');
       }
       await setIdle(userId);
+      // แจ้งพนักงานเฉพาะใบงานที่เพิ่งสร้าง กดยืนยันซ้ำ (existingNo) ไม่แจ้งซ้ำ แจ้งไม่สำเร็จไม่กระทบผู้พัก
+      if (!existingNo && onTicketCreated) {
+        try {
+          onTicketCreated({ id: ticketId, ticket_no: r.ticket_no, room_no: r.room_no, category: draft.category });
+        } catch (err) {
+          logger.warn('onTicketCreated failed', { error: err.message });
+        }
+      }
       return M.ticketCreated(r.ticket_no, r.room_no, {
         categoryLabel: categoryLabel(draft.category),
         description: draft.description,

@@ -36,6 +36,9 @@ jobs:
         run: flutter create --project-name dorm_care_staff --org com.dormcare --platforms android,web .
       # flutter create ใส่ test/widget_test.dart ตัวอย่างที่อ้าง MyApp ซึ่งแอปนี้ไม่มี
       - run: rm -f test/widget_test.dart
+      # Firebase Messaging ต้องการ Android 6.0 (API 23) ขึ้นไป โฟลเดอร์ android สร้างใหม่ทุกครั้งจึงแก้ตรงนี้
+      - name: ตั้ง minSdk อย่างน้อย 23
+        run: sed -i 's/minSdk = flutter.minSdkVersion/minSdk = maxOf(flutter.minSdkVersion, 23)/' android/app/build.gradle.kts && grep -n "minSdk" android/app/build.gradle.kts
       - run: flutter pub get
       - name: ตรวจโค้ด
         run: flutter analyze --no-fatal-infos --no-fatal-warnings

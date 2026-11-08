@@ -160,18 +160,28 @@ class Api {
     }
   }
 
-  Future<void> assign(String ticketId, String technicianId) =>
-      _rpc('assign_ticket', {'p_ticket_id': ticketId, 'p_technician_id': technicianId});
+  Future<void> assign(String ticketId, String technicianId) async {
+    await _rpc('assign_ticket', {'p_ticket_id': ticketId, 'p_technician_id': technicianId});
+    _pingStaff('assigned', ticketId);
+  }
 
   Future<void> startRepair(String ticketId) => _rpc('start_repair', {'p_ticket_id': ticketId});
 
-  Future<void> submitResult(String ticketId, String inspectionNote, String repairResult, List<String> photoPaths) =>
-      _rpc('submit_result', {
-        'p_ticket_id': ticketId,
-        'p_inspection': inspectionNote,
-        'p_result': repairResult,
-        'p_photo_paths': photoPaths,
-      });
+  Future<void> submitResult(String ticketId, String inspectionNote, String repairResult, List<String> photoPaths) async {
+    await _rpc('submit_result', {
+      'p_ticket_id': ticketId,
+      'p_inspection': inspectionNote,
+      'p_result': repairResult,
+      'p_photo_paths': photoPaths,
+    });
+    _pingStaff('completed', ticketId);
+  }
+
+  /// บอกเซิร์ฟเวอร์ให้เด้งแจ้งเตือนเข้าแอป Android ของคนที่เกี่ยวข้อง ไม่รอผล และไม่แจ้ง error
+  /// เพราะงานหลัก (มอบหมาย/บันทึกผล) สำเร็จแล้ว แจ้งเตือนพลาดไม่ควรทำให้ผู้ใช้คิดว่าทำรายการไม่สำเร็จ
+  void _pingStaff(String kind, String ticketId) {
+    unawaited(_sb.functions.invoke('staff-notify', body: {'kind': kind, 'ticket_id': ticketId}).then((_) {}, onError: (_) {}));
+  }
 
   /// รหัสคำขอที่ยังส่งไม่สำเร็จต่อใบงาน: กดลองใหม่หลังล้มเหลวจะใช้รหัสเดิม LINE จึงไม่ส่งซ้ำ
   final _pendingNotify = <String, String>{};
