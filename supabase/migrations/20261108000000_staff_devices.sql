@@ -10,6 +10,8 @@ create index staff_devices_user_idx on public.staff_devices (user_id);
 
 -- ไม่มี policy: แอปเขียนผ่านฟังก์ชันด้านล่าง ฟังก์ชันส่งแจ้งเตือนอ่านด้วย service role
 alter table public.staff_devices enable row level security;
+-- โปรเจกต์นี้ไม่ได้ให้สิทธิ์ตารางใหม่อัตโนมัติ (init ใช้ grant all on all tables ครั้งเดียว) จึงต้องให้ service_role เอง
+grant all on public.staff_devices to service_role;
 
 create or replace function public.register_device(p_token text) returns void
 language plpgsql security definer set search_path = public as $$
