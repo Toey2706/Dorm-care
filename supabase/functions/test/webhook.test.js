@@ -76,10 +76,15 @@ function setup() {
   const line = fakeLine();
   const saved = [];
   const errors = [];
+  const menu = [];
   const hook = createWebhook({
     rpc: db.rpc,
     storage: { save: async (path) => saved.push(path) },
     logger: { warn: () => {}, error: (m) => errors.push(m) },
+    richMenu: {
+      toBound: async (u) => { if (menu.fail) throw new Error('LINE 500'); menu.push(['bound', u]); },
+      toDefault: async (u) => menu.push(['default', u]),
+    },
   });
   let n = 0;
   const send = async (message, at = 1000) => {
@@ -89,7 +94,8 @@ function setup() {
   };
   const say = (text, at) => send({ type: 'text', text }, at);
   const last = () => line.replies[line.replies.length - 1];
-  return { db, line, saved, errors, hook, send, say, last };
+  const follow = () => hook.handleAll(line.client, [{ type: 'follow', webhookEventId: `f${++n}`, replyToken: `t${n}`, timestamp: 1000, source: { type: 'user', userId: 'U1' } }]);
+  return { db, line, saved, errors, hook, send, say, last, menu, follow };
 }
 
 async function reportUntilConfirm(t, photos = []) {
@@ -189,4 +195,29 @@ test('รหัสผิดพิมพ์ใหม่ได้ทันที �
   assert.match(t.last(), /ผิดหลายครั้งเกินไป/);
   assert.equal(t.db.s.sessions.U1.state, 'IDLE');
   assert.equal(t.db.s.bindings.U1, undefined);
+});
+
+test('เมนูด้านล่าง: แอดใหม่ได้เมนูเริ่มต้น ผูกห้องแล้วได้เมนูชุดผูกห้อง', async () => {
+  const t = setup();
+  await t.follow();
+  assert.deepEqual(t.menu, [['default', 'U1']]);
+  await t.say('ผูกเลขห้อง');
+  await t.say('123456');
+  assert.deepEqual(t.menu.at(-1), ['bound', 'U1']);
+});
+
+test('เมนูด้านล่าง: ถูกยกเลิกการผูกแล้วกดแจ้งซ่อม กลับเป็นเมนูเริ่มต้น', async () => {
+  const t = setup();
+  t.db.s.bindings.U1 = { status: 'REVOKED', room_no: '305', display_name: '' };
+  await t.say('แจ้งซ่อม');
+  assert.deepEqual(t.menu, [['default', 'U1']]);
+});
+
+test('เปลี่ยนเมนูไม่สำเร็จ ผู้ใช้ยังได้คำตอบว่าผูกห้องแล้ว', async () => {
+  const t = setup();
+  t.menu.fail = true;
+  await t.say('ผูกเลขห้อง');
+  const r = await t.say('123456');
+  assert.equal(r.ok, true);
+  assert.match(t.last(), /ห้อง 305 เรียบร้อย/);
 });

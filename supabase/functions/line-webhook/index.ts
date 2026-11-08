@@ -1,9 +1,11 @@
 // ตั้งค่า verify_jwt = false (LINE ไม่มี JWT ของ Supabase) ความปลอดภัยมาจากลายเซ็น x-line-signature แทน
 import { verifySignature, createClient as lineClient } from '../_shared/line.js';
 import { createWebhook } from '../_shared/webhook.js';
+import { ALIAS, richMenuApi } from '../_shared/richmenu.js';
 import { env, logger, rpcOf, serviceClient } from '../_shared/deno.ts';
 
 const db = serviceClient();
+const menus = richMenuApi(env('LINE_CHANNEL_ACCESS_TOKEN'));
 const webhook = createWebhook({
   rpc: rpcOf(db),
   storage: {
@@ -13,6 +15,13 @@ const webhook = createWebhook({
     },
   },
   logger,
+  richMenu: {
+    async toBound(userId: string) {
+      const id = await menus.aliasTarget(ALIAS.BOUND);
+      if (id) await menus.link(userId, id); // ยังไม่ได้รัน line-richmenu-setup ก็ข้ามไป
+    },
+    toDefault: (userId: string) => menus.unlink(userId),
+  },
 });
 
 Deno.serve(async (req) => {

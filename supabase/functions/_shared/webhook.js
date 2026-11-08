@@ -37,8 +37,23 @@ function toConversationEvent(event) {
  * @param {{save:(path:string, bytes:Uint8Array, contentType:string)=>Promise<void>}} deps.storage  bucket resident-photos
  * @param {{warn:Function, error:Function}} deps.logger
  */
-export function createWebhook({ rpc, storage, logger }) {
+/**
+ * richMenu ไม่บังคับ (ทดสอบได้โดยไม่ต้องมี) toBound = ให้เมนูชุดผูกห้องแล้ว, toDefault = กลับไปใช้เมนูเริ่มต้น
+ * เปลี่ยนเมนูไม่สำเร็จไม่ถือว่าเหตุการณ์ล้มเหลว ผู้ใช้ยังได้คำตอบตามปกติ
+ */
+const BOUND_ONLY = new Set(['แจ้งซ่อม', 'ติดตามงาน']);
+
+export function createWebhook({ rpc, storage, logger, richMenu = null }) {
   const setIdle = (userId) => rpc('line_set_idle', { p_user_id: userId });
+
+  async function syncMenu(userId, bound) {
+    if (!richMenu) return;
+    try {
+      await (bound ? richMenu.toBound(userId) : richMenu.toDefault(userId));
+    } catch (err) {
+      logger.warn('rich menu sync failed', { userId, bound, error: err.message });
+    }
+  }
 
   async function loadContext(userId) {
     const ctx = await rpc('line_context', { p_user_id: userId });
@@ -74,6 +89,10 @@ export function createWebhook({ rpc, storage, logger }) {
     if (event.webhookEventId && (await rpc('line_is_processed', { p_event_id: event.webhookEventId }))) return [];
 
     const { effects, binding } = await advance(userId, convEvent);
+    const bound = Boolean(binding && binding.status === 'ACTIVE');
+    // แอดใหม่ให้เมนูตรงสถานะ ส่วนคนที่ถูกยกเลิกการผูกห้องแต่ยังเห็นเมนูเก่า จะกลับเป็นเมนูเริ่มต้นตอนกดปุ่มที่ใช้ไม่ได้แล้ว
+    if (convEvent.kind === 'follow') await syncMenu(userId, bound);
+    else if (!bound && convEvent.kind === 'text' && BOUND_ONLY.has(String(convEvent.text).trim())) await syncMenu(userId, false);
 
     const replies = [];
     for (const effect of effects) {
@@ -110,10 +129,12 @@ export function createWebhook({ rpc, storage, logger }) {
     });
     if (r.result === 'BOUND') {
       await setIdle(userId);
+      await syncMenu(userId, true);
       return M.bindingDone(r.room_no);
     }
     if (r.result === 'ALREADY') {
       await setIdle(userId);
+      await syncMenu(userId, true);
       return M.text('บัญชีนี้ผูกห้องไว้แล้ว หากต้องการเปลี่ยนห้อง กรุณาติดต่อผู้ดูแล');
     }
     if (r.result === 'LIMIT') {
