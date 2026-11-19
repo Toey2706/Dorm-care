@@ -293,3 +293,23 @@ export function repairResult(ticket, categoryLabel, heroUrl) {
 export function image(url) {
   return { type: 'image', originalContentUrl: url, previewImageUrl: url };
 }
+
+export function waterAlert({ roomNo, minutes, flowLpm, totalL, timeText }) {
+  const alt =
+    `แจ้งเตือนจากอุปกรณ์วัดน้ำ ห้อง ${roomNo}\n` +
+    `น้ำไหลต่อเนื่อง ${minutes} นาที อัตราไหล ${flowLpm} L/min\n` +
+    'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจมีท่อหรือก๊อกรั่ว กด "แจ้งซ่อม" เพื่อแจ้งผู้ดูแล';
+  const b = bubble({
+    header: header('แจ้งเตือนจากอุปกรณ์วัดน้ำ', 'น้ำไหลต่อเนื่องผิดปกติ'),
+    body: [
+      row('ห้อง', roomNo),
+      row('ไหลต่อเนื่อง', `${minutes} นาที`),
+      row('อัตราไหล', `${flowLpm} L/min`),
+      row('ปริมาณรวม', `${totalL} L`),
+      row('เวลา', timeText),
+      { type: 'text', text: 'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจมีท่อหรือก๊อกรั่ว', size: 'sm', color: INK, wrap: true },
+    ],
+    footer: [button('แจ้งซ่อม', 'primary'), button('ติดต่อผู้ดูแล', 'secondary')],
+  });
+  return { ...flex(alt, b), quickReply: quickReply(['แจ้งซ่อม', 'ติดต่อผู้ดูแล']) };
+}

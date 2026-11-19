@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.staff-notify]
 verify_jwt = false
+
+[functions.water-alert]
+verify_jwt = false
