@@ -2,7 +2,6 @@ import { json, jsonHandler } from '../_shared/http.js';
 import { createClient as lineClient } from '../_shared/line.js';
 import { handleWaterAlert, keyMatches } from '../_shared/water.js';
 import { env, logger, serviceClient } from '../_shared/deno.ts';
-import { staffPush } from '../_shared/staff-push.ts';
 
 const handler = jsonHandler((body: Record<string, unknown>) => {
   const db = serviceClient();
@@ -24,7 +23,6 @@ const handler = jsonHandler((body: Record<string, unknown>) => {
         const { error } = await db.from('water_alerts').insert(row);
         if (error) throw error;
       },
-      staff: (message: { title: string; body: string; data?: Record<string, string> }) => staffPush(db).toAdmins(message),
       logger,
     },
     body

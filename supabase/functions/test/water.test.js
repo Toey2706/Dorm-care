@@ -122,3 +122,13 @@ test('ThingsBoard ล็อกอินแบบ public ครั้งเดี
   await tb.telemetry('d1', ['flow_lpm']);
   assert.equal(calls.filter((u) => u.endsWith('/login/public')).length, 2);
 });
+
+test('ไม่ส่งแจ้งเตือนผู้ดูแลเมื่อไม่ได้ตั้ง staff ส่งเฉพาะผู้พัก', async () => {
+  const errors = [];
+  const { d, pushed } = deps({ staff: undefined, logger: { error: (m) => errors.push(m), warn() {} } });
+  const r = await handleWaterAlert(d, { room: 'A1-01', minutes: 10 });
+  assert.equal(r.line, 2);
+  assert.equal(pushed.length, 2);
+  assert.deepEqual(r.staff, { sent: 0 });
+  assert.deepEqual(errors, []);
+});

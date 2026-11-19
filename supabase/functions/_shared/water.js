@@ -40,14 +40,16 @@ export async function handleWaterAlert({ roomExists, residents, push, staff, rec
   }
 
   let staffResult = { sent: 0 };
-  try {
-    staffResult = await staff({
-      title: `น้ำไหลต่อเนื่องผิดปกติ ห้อง ${roomNo}`,
-      body: `ไหลต่อเนื่อง ${minutes} นาที อัตราไหล ${flowLpm} L/min`,
-      data: { kind: 'water', room: roomNo },
-    });
-  } catch (err) {
-    logger.error('water alert staff push failed', { roomNo, message: err.message });
+  if (staff) {
+    try {
+      staffResult = await staff({
+        title: `น้ำไหลต่อเนื่องผิดปกติ ห้อง ${roomNo}`,
+        body: `ไหลต่อเนื่อง ${minutes} นาที อัตราไหล ${flowLpm} L/min`,
+        data: { kind: 'water', room: roomNo },
+      });
+    } catch (err) {
+      logger.error('water alert staff push failed', { roomNo, message: err.message });
+    }
   }
 
   if (record) {
