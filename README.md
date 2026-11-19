@@ -1,4 +1,4 @@
-# ระบบแจ้งซ่อมหอพัก System A (Dormitory Maintenance Reporting System)
+# ระบบแจ้งซ่อมหอพักและแจ้งเตือนการใช้น้ำผิดปกติ (Dormitory Maintenance Reporting System)
 
 ```
 ผู้ดูแลออกรหัส 6 หลัก (แอป) → ผู้พักพิมพ์รหัสผูกห้อง (LINE) → แจ้งซ่อม (LINE) → ผู้ดูแลมอบหมาย (แอป) → ช่างเริ่มซ่อมและบันทึกผล (แอป)
@@ -22,7 +22,7 @@
 |---|---|
 | iPhone | เปิด https://toey2706.github.io/Dorm-care/ ด้วย Safari กดปุ่มแชร์ แล้วเลือก "เพิ่มไปยังหน้าจอโฮม" |
 | คอมพิวเตอร์ | เปิดลิงก์เดียวกันในเบราว์เซอร์ |
-| Android | ดาวน์โหลด `dorm-care-android` จากหัวข้อ Artifacts ของรอบล่าสุดในแท็บ Actions (ต้องล็อกอิน GitHub) แตกไฟล์ zip แล้วติดตั้ง `app-release.apk` |
+| Android | ดาวน์โหลดและติดตั้งไฟล์ https://toey2706.github.io/Dorm-care/dorm-care.apk |
 
 ทุกครั้งที่ push โค้ดในโฟลเดอร์ `app/` ขึ้น `main` ไฟล์ `.github/workflows/app.yml` จะ build เว็บกับ APK ใหม่และอัปเดตเว็บให้เอง
 APK นี้ยังเซ็นด้วยกุญแจทดสอบของ Flutter ติดตั้งเองได้ แต่ส่งขึ้น Play Store ไม่ได้
@@ -37,10 +37,26 @@ APK นี้ยังเซ็นด้วยกุญแจทดสอบข�
 | `supabase/functions/notify-resident` | ผู้ดูแลสั่งแจ้งผลทาง LINE (กันส่งซ้ำเมื่อกดลองใหม่) |
 | `supabase/functions/login-otp-send` | ส่ง OTP ทางอีเมลตอนล็อกอิน |
 | `supabase/functions/password-reset-*` | ลืมรหัสผ่าน: ขอรหัสทางอีเมล แล้วตั้งรหัสผ่านใหม่ |
+| `supabase/migrations/…_water*.sql` | ตารางอุปกรณ์วัดน้ำ (water_devices) รายการแจ้งเตือน (water_alerts) และการปิดเรื่อง |
+| `supabase/functions/water-alert` | รับแจ้งเตือนจากบอร์ดวัดน้ำ ส่งการ์ด LINE ถึงผู้พัก แจ้งเตือนผู้ดูแล และบันทึกรายการ |
+| `supabase/functions/water-status` | ให้แอปอ่านค่าน้ำล่าสุดของแต่ละห้องจาก ThingsBoard (เฉพาะผู้ดูแล) |
+| `thingsboard/` | dashboard ของ ThingsBoard ที่ export ไว้ |
 | `supabase/functions/_shared` | โค้ดที่ใช้ร่วมกัน (บทสนทนา LINE, ข้อความ, ตรรกะ OTP) เป็น JS ธรรมดา เทสต์ด้วย Node ได้ |
 | `supabase/seed.example.sql` | ตัวอย่างใส่ห้อง พนักงาน และข้อความติดต่อ |
 | `app/` | แอป Flutter |
 | `scripts/` | สคริปต์ PowerShell สำหรับ deploy และรันแอปบน Windows |
+
+## อุปกรณ์วัดน้ำ
+
+ห้องที่ติดบอร์ดวัดน้ำ (ESP32-S3 + YF-S201) จะขึ้นในแท็บ **น้ำ** ของแอปผู้ดูแล
+
+- การ์ดของแต่ละห้องแสดงอัตราไหล ปริมาณรวม สถานะ (ไม่มีน้ำไหล / น้ำกำลังไหล / สงสัยน้ำรั่ว / ออฟไลน์) และเวลาอัปเดตล่าสุด รีเฟรชเองทุก 5 วินาที
+- น้ำไหลต่อเนื่องเกิน 10 นาที บอร์ดส่งแจ้งเตือนไปที่ `water-alert` ระบบส่งการ์ดเตือนทาง LINE ถึงผู้พักห้องนั้น แจ้งเตือนเข้าแอป Android ของผู้ดูแล และเพิ่มรายการในแท็บน้ำ
+- ผู้ดูแลกด **ปิดเรื่อง** แล้วเลือกผล "ใช้น้ำปกติ" หรือ "พบน้ำรั่ว ให้ผู้พักแจ้งซ่อม" รายการไม่ถูกลบ เก็บไว้เป็นประวัติ
+- ระบบไม่เปิดใบแจ้งซ่อมเอง ผู้พักกด "แจ้งซ่อม" จากการ์ดใน LINE
+- เพิ่มอุปกรณ์ใหม่: ใส่แถวในตาราง `water_devices` (รหัสอุปกรณ์ เลขห้อง และรหัสอุปกรณ์ใน ThingsBoard) แล้วตั้ง `DEVICE_ROOM` ในเฟิร์มแวร์ให้ตรงกัน
+
+ค่าลับที่ต้องตั้งใน Supabase: `WATER_DEVICE_KEY` (ต้องตรงกับ `secrets.h` ของเฟิร์มแวร์) ฟังก์ชัน `water-alert` และ `water-status` ต้องปิด Verify JWT
 
 ## กติกาที่โค้ดบังคับ
 
@@ -157,6 +173,6 @@ PGHOST=... PGPORT=... PGUSER=postgres supabase/tests/run.sh   # ฐานข้�
 - รหัสหมวดงาน (PLUMBING, ELECTRICAL, AIRCON, FURNITURE, OTHER) ตั้งตาม Prototype รอเทียบกับ RPT-05
 - ข้อความ LINE อยู่ใน `supabase/functions/_shared/messages.js` และข้อความอีเมล OTP อยู่ใน `_shared/auth.js` รอทีมยืนยันถ้อยคำ
 - ไม่มีหน้าจัดการพนักงานในแอป เพิ่มหรือปิดบัญชีผ่าน Dashboard และ SQL Editor
-- ไม่ได้ทำตามขอบเขต: LINE LIFF, นัดหมายเข้าห้อง, EAC, Push Notification
+- ไม่ได้ทำตามขอบเขต: LINE LIFF, นัดหมายเข้าห้อง, EAC
 - รูปหลังซ่อมที่ส่งทาง LINE เป็นลิงก์ชั่วคราว 30 วัน (`PHOTO_DAYS` ใน `_shared/notify.js`) หมดอายุแล้วรูปในแชตจะเปิดไม่ขึ้น
-- System B (อุปกรณ์วัดน้ำ) เป็นผลิตภัณฑ์แยก ไม่อยู่ในโค้ดนี้
+- อุปกรณ์วัดน้ำขายแยกเป็นชิ้น ติดเฉพาะห้องที่ซื้อ เฟิร์มแวร์อยู่ที่ https://github.com/Toey2706/WaterFlow-Firmware
