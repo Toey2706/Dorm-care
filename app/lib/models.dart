@@ -217,6 +217,7 @@ class WaterAlert {
     required this.createdAt,
     required this.ackedName,
     required this.ackedAt,
+    required this.result,
   });
 
   final int id;
@@ -228,6 +229,7 @@ class WaterAlert {
   final DateTime? createdAt;
   final String? ackedName;
   final DateTime? ackedAt;
+  final String? result;
 
   bool get acked => ackedAt != null;
 
@@ -241,6 +243,7 @@ class WaterAlert {
         createdAt: parseTime(d['created_at']),
         ackedName: d['acked_name'] as String?,
         ackedAt: parseTime(d['acked_at']),
+        result: d['result'] as String?,
       );
 }
 

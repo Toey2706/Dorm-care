@@ -171,25 +171,60 @@ class _AlertTile extends StatelessWidget {
   const _AlertTile({required this.alert});
   final WaterAlert alert;
 
+  static const _resultLabels = {
+    'NORMAL': 'ใช้น้ำปกติ',
+    'LEAK': 'พบน้ำรั่ว ให้ผู้พักแจ้งซ่อม',
+  };
+
+  Future<void> _close(BuildContext context) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: Text('ปิดเรื่องห้อง ${alert.roomNo}'), subtitle: const Text('เลือกผลการตรวจสอบ')),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: Text(_resultLabels['NORMAL']!),
+              onTap: () => Navigator.pop(context, 'NORMAL'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.plumbing),
+              title: Text(_resultLabels['LEAK']!),
+              onTap: () => Navigator.pop(context, 'LEAK'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == null || !context.mounted) return;
+    await runAction(context, () => Api.instance.closeWaterAlert(alert.id, result), success: 'ปิดเรื่องแล้ว');
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = alert;
     final scheme = Theme.of(context).colorScheme;
+    final leak = a.result == 'LEAK';
     return Card(
       child: ListTile(
-        leading: Icon(a.acked ? Icons.check_circle_outline : Icons.warning_amber_rounded, color: a.acked ? scheme.outline : scheme.error),
+        leading: Icon(
+          !a.acked ? Icons.warning_amber_rounded : leak ? Icons.plumbing : Icons.check_circle_outline,
+          color: !a.acked ? scheme.error : leak ? scheme.primary : scheme.outline,
+        ),
         title: Text('ห้อง ${a.roomNo} · ไหลต่อเนื่อง ${a.minutes} นาที'),
         subtitle: Text([
           thaiDate(a.createdAt),
           '${a.flowLpm.toStringAsFixed(1)} L/min',
           'ส่ง LINE ${a.lineSent} คน',
-          if (a.acked) 'รับเรื่องโดย ${a.ackedName ?? '-'}',
+          if (a.acked) '${_resultLabels[a.result] ?? 'ปิดเรื่องแล้ว'} · โดย ${a.ackedName ?? '-'}',
         ].join(' · ')),
         trailing: a.acked
             ? null
             : FilledButton.tonal(
-                onPressed: () => runAction(context, () => Api.instance.ackWaterAlert(a.id), success: 'รับเรื่องแล้ว'),
-                child: const Text('รับเรื่อง'),
+                onPressed: () => _close(context),
+                child: const Text('ปิดเรื่อง'),
               ),
       ),
     );

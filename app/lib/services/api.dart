@@ -276,7 +276,7 @@ class Api {
       .limit(limit)
       .map((rows) => rows.map(WaterAlert.fromJson).toList()));
 
-  Future<void> ackWaterAlert(int id) => _rpc('ack_water_alert', {'p_id': id});
+  Future<void> closeWaterAlert(int id, String result) => _rpc('close_water_alert', {'p_id': id, 'p_result': result});
 
   /// อัปโหลดรูปผลซ่อมไปที่ repair-photos/{ticketId}/... คืนตำแหน่งไฟล์
   /// อัปโหลดได้เฉพาะช่างที่รับงานนี้และงานกำลังซ่อม (storage policy)
