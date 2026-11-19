@@ -23,3 +23,7 @@ verify_jwt = false
 
 [functions.staff-notify]
 verify_jwt = false
+
+# The handler validates the bearer token and checks the existing verified admin session.
+[functions.water-usage]
+verify_jwt = false

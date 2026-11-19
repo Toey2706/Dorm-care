@@ -155,11 +155,55 @@ class Binding {
 
 DateTime? parseTime(dynamic v) => v is String ? DateTime.tryParse(v) : null;
 
+sealed class WaterUsage {
+  const WaterUsage();
+
+  static WaterUsage fromJson(Object? data) => switch (data) {
+        {
+          'state': 'ready',
+          'flow_lpm': num flow,
+          'total_liters_since_boot': num total,
+          'received_at_ms': int timestamp,
+          'stale': bool stale,
+        } when flow.isFinite && flow >= 0 && total.isFinite && total >= 0 && timestamp > 0 =>
+          WaterReading(
+            flowLpm: flow.toDouble(),
+            totalLiters: total.toDouble(),
+            receivedAt: DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true),
+            stale: stale,
+          ),
+        {'state': 'unconfigured'} => const WaterUnavailable.unconfigured(),
+        {'state': 'no_data'} => const WaterUnavailable.noData(),
+        _ => throw const FormatException('ข้อมูลการใช้น้ำไม่สมบูรณ์'),
+      };
+}
+
+final class WaterReading extends WaterUsage {
+  const WaterReading({
+    required this.flowLpm,
+    required this.totalLiters,
+    required this.receivedAt,
+    required this.stale,
+  });
+
+  final double flowLpm;
+  final double totalLiters;
+  final DateTime receivedAt;
+  final bool stale;
+}
+
+final class WaterUnavailable extends WaterUsage {
+  const WaterUnavailable.unconfigured() : isConfigured = false;
+  const WaterUnavailable.noData() : isConfigured = true;
+
+  final bool isConfigured;
+}
+
 /// วันที่แบบไทย เช่น 26 ต.ค. 2569 · 08:40
-String thaiDate(DateTime? value) {
+String thaiDate(DateTime? value, {Duration? utcOffset, bool showSeconds = false}) {
   if (value == null) return '-';
-  final local = value.toLocal();
+  final local = utcOffset == null ? value.toLocal() : value.toUtc().add(utcOffset);
   final dm = DateFormat('d MMM', 'th').format(local);
-  final time = DateFormat('HH:mm').format(local);
+  final time = DateFormat(showSeconds ? 'HH:mm:ss' : 'HH:mm').format(local);
   return '$dm ${local.year + 543} · $time';
 }

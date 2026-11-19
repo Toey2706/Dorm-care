@@ -184,6 +184,19 @@ class Api {
     return rows.map((r) => r['room_no'] as String).toList();
   }
 
+  Future<WaterUsage> waterUsage(String roomNo) async {
+    try {
+      final response = await _sb.functions
+          .invoke('water-usage', body: {'room_no': roomNo})
+          .timeout(const Duration(seconds: 12));
+      return WaterUsage.fromJson(response.data);
+    } on FunctionException catch (e) {
+      final details = e.details;
+      final message = details is Map ? details['message'] : null;
+      throw ApiException(message is String ? message : 'โหลดข้อมูลการใช้น้ำไม่สำเร็จ กรุณาลองใหม่');
+    }
+  }
+
   /// รูปจากผู้พักอยู่ใน resident-photos รูปหลังซ่อมอยู่ใน repair-photos ทั้งสองเป็น bucket ส่วนตัว
   /// ลิงก์ที่ได้ใช้ได้ 1 ชั่วโมง
   Future<String> photoUrl(String bucket, String path) => _sb.storage.from(bucket).createSignedUrl(path, 3600);
