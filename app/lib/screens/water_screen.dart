@@ -207,25 +207,49 @@ class _AlertTile extends StatelessWidget {
     final a = alert;
     final scheme = Theme.of(context).colorScheme;
     final leak = a.result == 'LEAK';
+    final t = Theme.of(context).textTheme;
     return Card(
-      child: ListTile(
-        leading: Icon(
-          !a.acked ? Icons.warning_amber_rounded : leak ? Icons.plumbing : Icons.check_circle_outline,
-          color: !a.acked ? scheme.error : leak ? scheme.primary : scheme.outline,
-        ),
-        title: Text('ห้อง ${a.roomNo} · ไหลต่อเนื่อง ${a.minutes} นาที'),
-        subtitle: Text([
-          thaiDate(a.createdAt),
-          '${a.flowLpm.toStringAsFixed(1)} L/min',
-          'ส่ง LINE ${a.lineSent} คน',
-          if (a.acked) '${_resultLabels[a.result] ?? 'ปิดเรื่องแล้ว'} · โดย ${a.ackedName ?? '-'}',
-        ].join(' · ')),
-        trailing: a.acked
-            ? null
-            : FilledButton.tonal(
-                onPressed: () => _close(context),
-                child: const Text('ปิดเรื่อง'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                !a.acked ? Icons.warning_amber_rounded : leak ? Icons.plumbing : Icons.check_circle_outline,
+                color: !a.acked ? scheme.error : leak ? scheme.primary : scheme.outline,
               ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ห้อง ${a.roomNo} · ไหลต่อเนื่อง ${a.minutes} นาที', style: t.titleMedium),
+                  Text(
+                    [
+                      thaiDate(a.createdAt),
+                      '${a.flowLpm.toStringAsFixed(1)} L/min',
+                      'ส่ง LINE ${a.lineSent} คน',
+                    ].join(' · '),
+                    style: t.bodySmall,
+                  ),
+                  if (a.acked) Text('${_resultLabels[a.result] ?? 'ปิดเรื่องแล้ว'} · โดย ${a.ackedName ?? '-'}', style: t.bodyMedium),
+                  if (!a.acked)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.tonal(
+                        style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+                        onPressed: () => _close(context),
+                        child: const Text('ปิดเรื่อง'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
