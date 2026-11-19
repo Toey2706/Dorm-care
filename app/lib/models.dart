@@ -163,3 +163,85 @@ String thaiDate(DateTime? value) {
   final time = DateFormat('HH:mm').format(local);
   return '$dm ${local.year + 543} · $time';
 }
+
+class WaterDevice {
+  WaterDevice({
+    required this.id,
+    required this.roomNo,
+    required this.label,
+    required this.online,
+    required this.lastSeen,
+    required this.flowLpm,
+    required this.totalL,
+    required this.flowSeconds,
+    required this.rssi,
+    required this.state,
+    required this.error,
+  });
+
+  final String id;
+  final String roomNo;
+  final String label;
+  final bool online;
+  final DateTime? lastSeen;
+  final double? flowLpm;
+  final double? totalL;
+  final int? flowSeconds;
+  final int? rssi;
+  final String state;
+  final String? error;
+
+  factory WaterDevice.fromJson(Map<String, dynamic> d) => WaterDevice(
+        id: d['id'] as String,
+        roomNo: (d['room_no'] as String?) ?? '-',
+        label: (d['label'] as String?) ?? '',
+        online: d['online'] == true,
+        lastSeen: parseTime(d['last_seen']),
+        flowLpm: (d['flow_lpm'] as num?)?.toDouble(),
+        totalL: (d['total_l'] as num?)?.toDouble(),
+        flowSeconds: (d['flow_seconds'] as num?)?.toInt(),
+        rssi: (d['rssi'] as num?)?.toInt(),
+        state: (d['state'] as String?) ?? 'UNKNOWN',
+        error: d['error'] as String?,
+      );
+}
+
+class WaterAlert {
+  WaterAlert({
+    required this.id,
+    required this.roomNo,
+    required this.minutes,
+    required this.flowLpm,
+    required this.totalL,
+    required this.lineSent,
+    required this.createdAt,
+    required this.ackedName,
+    required this.ackedAt,
+  });
+
+  final int id;
+  final String roomNo;
+  final int minutes;
+  final double flowLpm;
+  final double totalL;
+  final int lineSent;
+  final DateTime? createdAt;
+  final String? ackedName;
+  final DateTime? ackedAt;
+
+  bool get acked => ackedAt != null;
+
+  factory WaterAlert.fromJson(Map<String, dynamic> d) => WaterAlert(
+        id: (d['id'] as num).toInt(),
+        roomNo: (d['room_no'] as String?) ?? '-',
+        minutes: (d['minutes'] as num?)?.toInt() ?? 0,
+        flowLpm: _toDouble(d['flow_lpm']),
+        totalL: _toDouble(d['total_l']),
+        lineSent: (d['line_sent'] as num?)?.toInt() ?? 0,
+        createdAt: parseTime(d['created_at']),
+        ackedName: d['acked_name'] as String?,
+        ackedAt: parseTime(d['acked_at']),
+      );
+}
+
+double _toDouble(dynamic v) => v is num ? v.toDouble() : double.tryParse('$v') ?? 0;

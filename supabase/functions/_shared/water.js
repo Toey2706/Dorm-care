@@ -17,7 +17,7 @@ const num = (v, digits) => {
   return Number(n.toFixed(digits));
 };
 
-export async function handleWaterAlert({ roomExists, residents, push, staff, logger, now = () => new Date() }, body) {
+export async function handleWaterAlert({ roomExists, residents, push, staff, record, logger, now = () => new Date() }, body) {
   const roomNo = String(body.room ?? '').trim().toUpperCase();
   if (!roomNo) throw fail(400, 'invalid-argument', 'ไม่มีเลขห้อง');
   if (!(await roomExists(roomNo))) throw fail(404, 'not-found', 'ไม่พบห้องนี้');
@@ -50,5 +50,59 @@ export async function handleWaterAlert({ roomExists, residents, push, staff, log
     logger.error('water alert staff push failed', { roomNo, message: err.message });
   }
 
+  if (record) {
+    try {
+      await record({ room_no: roomNo, minutes, flow_lpm: flowLpm, total_l: totalL, line_sent: line });
+    } catch (err) {
+      logger.error('water alert record failed', { roomNo, message: err.message });
+    }
+  }
+
   return { room: roomNo, line, residents: userIds.length, staff: staffResult };
+}
+
+const ONLINE_MS = 60_000;
+const KEYS = ['flow_lpm', 'total_l', 'flowing', 'flow_seconds', 'leak', 'rssi'];
+
+const latest = (series, key) => (Array.isArray(series?.[key]) && series[key][0]) || null;
+
+export function summarizeTelemetry(series, nowMs) {
+  const points = KEYS.map((k) => latest(series, k)).filter(Boolean);
+  if (points.length === 0) return { online: false, last_seen: null };
+  const ts = Math.max(...points.map((p) => Number(p.ts) || 0));
+  const val = (k) => latest(series, k)?.value;
+  const n = (k) => {
+    const v = Number(val(k));
+    return Number.isFinite(v) ? v : null;
+  };
+  const b = (k) => String(val(k)) === 'true';
+  const flowing = b('flowing');
+  const leak = b('leak');
+  return {
+    online: nowMs - ts <= ONLINE_MS,
+    last_seen: new Date(ts).toISOString(),
+    flow_lpm: n('flow_lpm'),
+    total_l: n('total_l'),
+    flowing,
+    flow_seconds: n('flow_seconds'),
+    leak,
+    rssi: n('rssi'),
+    state: leak ? 'LEAK' : flowing ? 'FLOWING' : 'IDLE',
+  };
+}
+
+export async function waterStatus({ devices, telemetry, logger, now = () => new Date() }) {
+  const list = await devices();
+  const nowMs = now().getTime();
+  return Promise.all(
+    list.map(async (d) => {
+      const base = { id: d.id, room_no: d.room_no, label: d.label ?? '' };
+      try {
+        return { ...base, ...summarizeTelemetry(await telemetry(d.tb_device_id, KEYS), nowMs) };
+      } catch (err) {
+        logger.error('water telemetry failed', { id: d.id, message: err.message });
+        return { ...base, online: false, last_seen: null, error: 'อ่านค่าจากอุปกรณ์ไม่ได้' };
+      }
+    })
+  );
 }

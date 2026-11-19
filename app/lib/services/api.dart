@@ -258,6 +258,26 @@ class Api {
 
   Future<void> revokeBinding(String lineUserId) => _rpc('revoke_binding', {'p_line_user_id': lineUserId});
 
+  Future<List<WaterDevice>> waterStatus() async {
+    try {
+      final res = await _sb.functions.invoke('water-status', body: <String, dynamic>{});
+      final data = Map<String, dynamic>.from(res.data as Map);
+      return (data['devices'] as List).map((e) => WaterDevice.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    } on FunctionException catch (e) {
+      final d = e.details is Map ? Map<String, dynamic>.from(e.details as Map) : <String, dynamic>{};
+      throw ApiException((d['message'] as String?) ?? 'อ่านค่าอุปกรณ์วัดน้ำไม่สำเร็จ');
+    }
+  }
+
+  Stream<List<WaterAlert>> waterAlerts({int limit = 50}) => _resilient(() => _sb
+      .from('water_alerts')
+      .stream(primaryKey: ['id'])
+      .order('created_at', ascending: false)
+      .limit(limit)
+      .map((rows) => rows.map(WaterAlert.fromJson).toList()));
+
+  Future<void> ackWaterAlert(int id) => _rpc('ack_water_alert', {'p_id': id});
+
   /// อัปโหลดรูปผลซ่อมไปที่ repair-photos/{ticketId}/... คืนตำแหน่งไฟล์
   /// อัปโหลดได้เฉพาะช่างที่รับงานนี้และงานกำลังซ่อม (storage policy)
   Future<String> uploadRepairPhoto(String ticketId, Uint8List bytes) async {

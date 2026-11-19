@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.water-alert]
 verify_jwt = false
+
+[functions.water-status]
+verify_jwt = false

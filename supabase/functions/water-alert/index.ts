@@ -10,7 +10,7 @@ const handler = jsonHandler((body: Record<string, unknown>) => {
   return handleWaterAlert(
     {
       roomExists: async (roomNo: string) => {
-        const { data, error } = await db.from('rooms').select('room_no').eq('room_no', roomNo).eq('active', true).maybeSingle();
+        const { data, error } = await db.from('water_devices').select('room_no').eq('room_no', roomNo).eq('active', true).maybeSingle();
         if (error) throw error;
         return Boolean(data);
       },
@@ -20,6 +20,10 @@ const handler = jsonHandler((body: Record<string, unknown>) => {
         return (data ?? []).map((r: { line_user_id: string }) => r.line_user_id);
       },
       push: (to: string, messages: unknown[]) => line.push(to, messages),
+      record: async (row: Record<string, unknown>) => {
+        const { error } = await db.from('water_alerts').insert(row);
+        if (error) throw error;
+      },
       staff: (message: { title: string; body: string; data?: Record<string, string> }) => staffPush(db).toAdmins(message),
       logger,
     },

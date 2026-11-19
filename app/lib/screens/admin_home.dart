@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../widgets/common.dart';
 import 'bindings_screen.dart';
 import 'ticket_detail.dart';
+import 'water_screen.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key, required this.me});
@@ -23,6 +24,7 @@ class _AdminHomeState extends State<AdminHome> {
     final pages = [
       _TicketsPage(me: widget.me),
       const BindingsScreen(),
+      const WaterScreen(),
       AccountPage(me: widget.me),
     ];
     return Scaffold(
@@ -33,6 +35,7 @@ class _AdminHomeState extends State<AdminHome> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.build_outlined), label: 'แจ้งซ่อม'),
           NavigationDestination(icon: Icon(Icons.meeting_room_outlined), label: 'ผูกห้อง'),
+          NavigationDestination(icon: Icon(Icons.water_drop_outlined), label: 'น้ำ'),
           NavigationDestination(icon: Icon(Icons.person_outline), label: 'บัญชี'),
         ],
       ),

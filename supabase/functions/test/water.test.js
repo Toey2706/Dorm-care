@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handleWaterAlert, keyMatches } from '../_shared/water.js';
+import { handleWaterAlert, keyMatches, summarizeTelemetry, waterStatus } from '../_shared/water.js';
+import { thingsboard } from '../_shared/thingsboard.js';
 
 const deps = (over = {}) => {
   const pushed = [];
@@ -52,4 +53,72 @@ test('ตรวจคีย์อุปกรณ์', async () => {
   assert.equal(await keyMatches('abd', 'abc'), false);
   assert.equal(await keyMatches('', 'abc'), false);
   assert.equal(await keyMatches('abc', ''), false);
+});
+
+test('บันทึกแจ้งเตือนพร้อมจำนวนผู้พักที่ได้รับการ์ด', async () => {
+  const rows = [];
+  const { d } = deps({ record: async (r) => rows.push(r) });
+  await handleWaterAlert(d, { room: 'A1-01', minutes: 11, flow_lpm: 2, total_l: 30 });
+  assert.deepEqual(rows, [{ room_no: 'A1-01', minutes: 11, flow_lpm: 2, total_l: 30, line_sent: 2 }]);
+});
+
+test('บันทึกไม่สำเร็จก็ยังส่งแจ้งเตือนครบ', async () => {
+  const { d, pushed } = deps({ record: async () => { throw new Error('db down'); } });
+  const r = await handleWaterAlert(d, { room: 'A1-01', minutes: 11 });
+  assert.equal(r.line, 2);
+  assert.equal(pushed.length, 2);
+});
+
+const series = (ts, over = {}) => {
+  const v = { flow_lpm: '3.5', total_l: '120.4', flowing: 'true', flow_seconds: '90', leak: 'false', rssi: '-55', ...over };
+  return Object.fromEntries(Object.entries(v).map(([k, value]) => [k, [{ ts, value }]]));
+};
+
+test('สรุปค่าล่าสุดและสถานะจาก telemetry', () => {
+  const now = Date.parse('2026-11-19T16:00:00Z');
+  const s = summarizeTelemetry(series(now - 5000), now);
+  assert.equal(s.online, true);
+  assert.equal(s.flow_lpm, 3.5);
+  assert.equal(s.total_l, 120.4);
+  assert.equal(s.state, 'FLOWING');
+  assert.equal(summarizeTelemetry(series(now, { leak: 'true' }), now).state, 'LEAK');
+  assert.equal(summarizeTelemetry(series(now, { flowing: 'false' }), now).state, 'IDLE');
+});
+
+test('ไม่ส่งข้อมูลเกิน 1 นาทีถือว่าออฟไลน์ และไม่มีข้อมูลเลยก็ออฟไลน์', () => {
+  const now = Date.parse('2026-11-19T16:00:00Z');
+  assert.equal(summarizeTelemetry(series(now - 61_000), now).online, false);
+  assert.deepEqual(summarizeTelemetry({}, now), { online: false, last_seen: null });
+});
+
+test('อุปกรณ์ที่อ่านค่าไม่ได้ไม่ทำให้รายการทั้งหมดล้ม', async () => {
+  const list = await waterStatus({
+    devices: async () => [{ id: 'WF-001', room_no: 'A1-01', tb_device_id: 'a' }, { id: 'WF-002', room_no: 'B2-03', tb_device_id: 'b' }],
+    telemetry: async (id) => { if (id === 'b') throw new Error('502'); return series(Date.now()); },
+    logger: { error() {} },
+  });
+  assert.equal(list[0].online, true);
+  assert.equal(list[1].online, false);
+  assert.ok(list[1].error);
+});
+
+test('ThingsBoard ล็อกอินแบบ public ครั้งเดียวแล้วใช้โทเคนซ้ำ และล็อกอินใหม่เมื่อโทเคนหมดอายุ', async () => {
+  const calls = [];
+  let expired = false;
+  const fetch = async (url, opt = {}) => {
+    calls.push(url);
+    if (url.endsWith('/login/public')) {
+      assert.deepEqual(JSON.parse(opt.body), { publicId: 'P' });
+      return { ok: true, json: async () => ({ token: `T${calls.length}` }) };
+    }
+    if (expired) { expired = false; return { ok: false, status: 401 }; }
+    return { ok: true, status: 200, json: async () => ({ flow_lpm: [] }) };
+  };
+  const tb = thingsboard({ publicId: 'P', fetch });
+  await tb.telemetry('d1', ['flow_lpm']);
+  await tb.telemetry('d1', ['flow_lpm']);
+  assert.equal(calls.filter((u) => u.endsWith('/login/public')).length, 1);
+  expired = true;
+  await tb.telemetry('d1', ['flow_lpm']);
+  assert.equal(calls.filter((u) => u.endsWith('/login/public')).length, 2);
 });
