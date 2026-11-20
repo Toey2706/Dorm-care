@@ -48,12 +48,13 @@ function fakeDb() {
     line_water_rules: ({ p_user_id }) => {
       const b = s.bindings[p_user_id];
       if (!b) return null;
-      return { room_no: b.room_no, has_device: b.room_no === '305', rules: s.rules || [] };
+      return { room_no: b.room_no, has_device: b.room_no === '305', default_minutes: s.defaultMinutes || 10, rules: s.rules || [] };
     },
     line_add_water_rule: ({ p_start, p_end, p_minutes }) => {
       s.rules = [...(s.rules || []), { start_min: p_start, end_min: p_end, minutes: p_minutes }];
       return { result: 'OK' };
     },
+    line_set_water_default: ({ p_minutes }) => { s.defaultMinutes = p_minutes; return { result: 'OK' }; },
     line_clear_water_rules: () => { const n = (s.rules || []).length; s.rules = []; return n; },
     line_contact_text: () => null,
   };
@@ -250,7 +251,7 @@ test('ผู้พักตั้งช่วงเวลาแจ้งเต�
   t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
   await t.say('ตั้งแจ้งเตือนน้ำ');
   assert.match(t.last(), /ยังไม่ได้ตั้งช่วงเวลา/);
-  await t.say('เพิ่มช่วงเวลา');
+  await t.say('ตั้งเวลาแจ้งเตือน');
   assert.equal(t.db.s.sessions.U1.state, 'WATER_RULE');
   await t.say('9.00-10.00 30');
   assert.deepEqual(t.db.s.rules, [{ start_min: 540, end_min: 600, minutes: 30 }]);
@@ -265,4 +266,15 @@ test('ห้องที่ไม่ได้ติดอุปกรณ์ว�
   t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '999', display_name: '' };
   await t.say('ตั้งแจ้งเตือนน้ำ');
   assert.match(t.last(), /ยังไม่ได้ติดอุปกรณ์วัดน้ำ/);
+});
+
+test('ผู้พักตั้งเวลาเตือนสำหรับเวลาอื่นทั้งหมดได้', async () => {
+  const t = setup();
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  await t.say('ตั้งแจ้งเตือนน้ำ');
+  assert.match(t.last(), /ทั้งวันเตือนเมื่อน้ำไหลต่อเนื่องเกิน 10 นาที/);
+  await t.say('ตั้งเวลาแจ้งเตือน');
+  await t.say('ทั้งวัน 20');
+  assert.equal(t.db.s.defaultMinutes, 20);
+  assert.match(t.last(), /ทั้งวันเตือนเมื่อน้ำไหลต่อเนื่องเกิน 20 นาที/);
 });

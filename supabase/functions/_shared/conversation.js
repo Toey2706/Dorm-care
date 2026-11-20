@@ -22,7 +22,7 @@ export const COMMAND = Object.freeze({
   SKIP: 'ข้าม',
   CONFIRM: 'ยืนยัน',
   WATER: 'ตั้งแจ้งเตือนน้ำ',
-  WATER_ADD: 'เพิ่มช่วงเวลา',
+  WATER_ADD: 'ตั้งเวลาแจ้งเตือน',
   WATER_CLEAR: 'ลบช่วงเวลาทั้งหมด',
 });
 
@@ -53,7 +53,14 @@ const idle = () => ({ state: STATE.IDLE, draft: null });
 
 const RULE_PATTERN = /^(\d{1,2})[:.](\d{2})\s*(?:-|–|ถึง)\s*(\d{1,2})[:.](\d{2})\s+(\d{1,3})(?:\s*นาที)?$/;
 
+const DEFAULT_PATTERN = /^(?:ทั้งวัน|เวลาอื่น)\s*(\d{1,3})(?:\s*นาที)?$/;
+
 export function parseWaterRule(input) {
+  const d = DEFAULT_PATTERN.exec(String(input || '').trim());
+  if (d) {
+    const minutes = Number(d[1]);
+    return minutes >= 5 && minutes <= 180 && minutes % 5 === 0 ? { allDay: true, minutes } : null;
+  }
   const m = RULE_PATTERN.exec(String(input || '').trim());
   if (!m) return null;
   const [h1, m1, h2, m2, minutes] = m.slice(1).map(Number);
@@ -196,7 +203,7 @@ export function handle(session, binding, event) {
     case STATE.WATER_RULE: {
       const rule = parseWaterRule(text);
       if (!rule) {
-        return { session: current, effects: [reply(M.text('รูปแบบไม่ถูกต้อง พิมพ์แบบนี้ 09:00-10:00 30 (นาทีต้องเป็น 5 ถึง 180 และหาร 5 ลงตัว)'), M.askWaterRule())] };
+        return { session: current, effects: [reply(M.text('รูปแบบไม่ถูกต้อง พิมพ์แบบนี้ 09:00-10:00 30 หรือ ทั้งวัน 20 (นาทีต้องเป็น 5 ถึง 180 และหาร 5 ลงตัว)'), M.askWaterRule())] };
       }
       return { session: current, effects: [{ type: 'addWaterRule', rule }] };
     }

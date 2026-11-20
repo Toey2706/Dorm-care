@@ -70,13 +70,16 @@ test('อ่านช่วงเวลาแจ้งเตือนน้ำ�
   assert.equal(parseWaterRule('09:00-09:00 30'), null);
   assert.equal(parseWaterRule('25:00-10:00 30'), null);
   assert.equal(parseWaterRule('9 โมง 30 นาที'), null);
+  assert.deepEqual(parseWaterRule('ทั้งวัน 20'), { allDay: true, minutes: 20 });
+  assert.deepEqual(parseWaterRule('ทั้งวัน 15 นาที'), { allDay: true, minutes: 15 });
+  assert.equal(parseWaterRule('ทั้งวัน 3'), null);
 });
 
 test('ตั้งแจ้งเตือนน้ำ: ต้องผูกห้องก่อน และพิมพ์ผิดยังอยู่ขั้นเดิม', () => {
   assert.match(handle(null, null, say('ตั้งแจ้งเตือนน้ำ')).effects[0].messages[0].text, /ผูกเลขห้อง/);
   let r = handle(null, active, say('ตั้งแจ้งเตือนน้ำ'));
   assert.deepEqual(types(r), ['showWaterRules']);
-  r = handle(r.session, active, say('เพิ่มช่วงเวลา'));
+  r = handle(r.session, active, say('ตั้งเวลาแจ้งเตือน'));
   assert.equal(r.session.state, STATE.WATER_RULE);
   r = handle(r.session, active, say('เก้าโมง'));
   assert.equal(r.session.state, STATE.WATER_RULE);

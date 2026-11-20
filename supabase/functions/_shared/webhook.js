@@ -116,11 +116,13 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
     const info = await rpc('line_water_rules', { p_user_id: userId });
     if (!info) return M.text('ยังไม่ได้ผูกห้อง กด "ผูกเลขห้อง" ก่อนตั้งแจ้งเตือนน้ำ');
     if (!info.has_device) return M.text(`ห้อง ${info.room_no} ยังไม่ได้ติดอุปกรณ์วัดน้ำ หากสนใจติดตั้ง กรุณาติดต่อผู้ดูแล`);
-    return M.waterRules(info.room_no, info.rules || []);
+    return M.waterRules(info.room_no, info.rules || [], info.default_minutes || 10);
   }
 
   async function addWaterRule(userId, rule) {
-    const r = await rpc('line_add_water_rule', { p_user_id: userId, p_start: rule.start, p_end: rule.end, p_minutes: rule.minutes });
+    const r = rule.allDay
+      ? await rpc('line_set_water_default', { p_user_id: userId, p_minutes: rule.minutes })
+      : await rpc('line_add_water_rule', { p_user_id: userId, p_start: rule.start, p_end: rule.end, p_minutes: rule.minutes });
     if (r.result === 'INVALID') return [M.text('รูปแบบไม่ถูกต้อง พิมพ์แบบนี้ 09:00-10:00 30'), M.askWaterRule()];
     await setIdle(userId);
     if (r.result === 'OK') return [M.text('บันทึกช่วงเวลาแล้ว'), await waterRulesMessage(userId)];

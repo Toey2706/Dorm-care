@@ -19,3 +19,9 @@ do $$ begin perform public.line_add_water_rule('Uwater1', 0, 60, 5); perform pub
 do $$ begin if jsonb_array_length(public.line_water_rules('Uwater1')->'rules') <> 5 then raise exception 'list'; end if; end $$;
 do $$ begin if public.line_clear_water_rules('Uwater1') <> 5 then raise exception 'clear count'; end if; end $$;
 do $$ begin if public.water_threshold('A1-01', '2026-11-20 09:30+07') <> 10 then raise exception 'clear threshold'; end if; end $$;
+do $$ begin if public.line_set_water_default('Uwater1', 20)->>'result' <> 'OK' then raise exception 'set default'; end if; end $$;
+do $$ begin if public.water_threshold('A1-01', '2026-11-20 13:00+07') <> 20 then raise exception 'default used'; end if; end $$;
+do $$ begin perform public.line_add_water_rule('Uwater1', 540, 600, 45); if public.water_threshold('A1-01', '2026-11-20 09:30+07') <> 45 then raise exception 'rule over default'; end if; end $$;
+do $$ begin if (public.line_water_rules('Uwater1')->>'default_minutes')::int <> 20 then raise exception 'default listed'; end if; end $$;
+do $$ begin if public.line_set_water_default('Uwater1', 7)->>'result' <> 'INVALID' then raise exception 'default step'; end if; end $$;
+do $$ begin if public.line_set_water_default('Uwater2', 20)->>'result' <> 'NO_DEVICE' then raise exception 'default no device'; end if; end $$;

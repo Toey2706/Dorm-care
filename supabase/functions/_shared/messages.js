@@ -319,25 +319,25 @@ export function waterAlert({ roomNo, minutes, flowLpm, totalL, timeText, test = 
 
 const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-export function waterRules(roomNo, rules) {
+export function waterRules(roomNo, rules, defaultMinutes = 10) {
   const lines = rules.length
     ? rules.map((r) => `${hhmm(r.start_min)}-${hhmm(r.end_min)} เตือนเมื่อไหลเกิน ${r.minutes} นาที`)
     : ['ยังไม่ได้ตั้งช่วงเวลา'];
-  lines.push('เวลาอื่นเตือนเมื่อน้ำไหลต่อเนื่องเกิน 10 นาที');
+  lines.push(`${rules.length ? 'เวลาอื่น' : 'ทั้งวัน'}เตือนเมื่อน้ำไหลต่อเนื่องเกิน ${defaultMinutes} นาที`);
   const buttons = rules.length
-    ? [['เพิ่มช่วงเวลา', 'primary'], ['ลบช่วงเวลาทั้งหมด', 'secondary']]
-    : [['เพิ่มช่วงเวลา', 'primary']];
+    ? [['ตั้งเวลาแจ้งเตือน', 'primary'], ['ลบช่วงเวลาทั้งหมด', 'secondary']]
+    : [['ตั้งเวลาแจ้งเตือน', 'primary']];
   return card(`ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}\n${lines.join('\n')}`, { title: `ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}`, subtitle: 'ช่วงเวลาที่ตั้งไว้', lines, buttons });
 }
 
 export function askWaterRule() {
-  return card('พิมพ์ช่วงเวลาและจำนวนนาที เช่น 09:00-10:00 30', {
-    title: 'เพิ่มช่วงเวลา',
+  return card('พิมพ์ช่วงเวลาและจำนวนนาที เช่น 09:00-10:00 30 หรือ ทั้งวัน 20', {
+    title: 'ตั้งเวลาแจ้งเตือน',
     subtitle: 'พิมพ์เวลาและนาที',
     lines: [
-      'พิมพ์ช่วงเวลาและจำนวนนาทีที่ให้เตือน เช่น',
-      '09:00-10:00 30',
+      'ตั้งเฉพาะช่วงเวลา พิมพ์ เช่น 09:00-10:00 30',
       'แปลว่าช่วง 9 โมงถึง 10 โมง ถ้าน้ำไหลต่อเนื่องเกิน 30 นาทีจึงเตือน',
+      'ตั้งค่าสำหรับเวลาอื่นทั้งหมด พิมพ์ เช่น ทั้งวัน 20',
       'จำนวนนาทีใช้ 5 ถึง 180 และต้องหาร 5 ลงตัว',
     ],
     buttons: [['ยกเลิก', 'link']],
