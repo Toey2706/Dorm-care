@@ -21,6 +21,9 @@ export const COMMAND = Object.freeze({
   CANCEL: 'ยกเลิก',
   SKIP: 'ข้าม',
   CONFIRM: 'ยืนยัน',
+  WATER: 'ตั้งแจ้งเตือนน้ำ',
+  WATER_ADD: 'เพิ่มช่วงเวลา',
+  WATER_CLEAR: 'ลบช่วงเวลาทั้งหมด',
 });
 
 export const STATE = Object.freeze({
@@ -30,6 +33,7 @@ export const STATE = Object.freeze({
   REPORT_DETAIL: 'REPORT_DETAIL',
   REPORT_PHOTO: 'REPORT_PHOTO',
   REPORT_CONFIRM: 'REPORT_CONFIRM',
+  WATER_RULE: 'WATER_RULE',
 });
 
 /** หมวดงานตาม Prototype (รหัสรอยืนยันกับ RPT-05 ใน Data Element Design) */
@@ -46,6 +50,19 @@ const MAX_DETAIL = 1000;
 const CODE_PATTERN = /^[0-9]{6}$/;
 
 const idle = () => ({ state: STATE.IDLE, draft: null });
+
+const RULE_PATTERN = /^(\d{1,2})[:.](\d{2})\s*(?:-|–|ถึง)\s*(\d{1,2})[:.](\d{2})\s+(\d{1,3})(?:\s*นาที)?$/;
+
+export function parseWaterRule(input) {
+  const m = RULE_PATTERN.exec(String(input || '').trim());
+  if (!m) return null;
+  const [h1, m1, h2, m2, minutes] = m.slice(1).map(Number);
+  if (h1 > 23 || h2 > 24 || m1 > 59 || m2 > 59 || (h2 === 24 && m2 > 0)) return null;
+  const start = h1 * 60 + m1;
+  const end = (h2 * 60 + m2) % 1440;
+  if (start === end || minutes < 5 || minutes > 180 || minutes % 5 !== 0) return null;
+  return { start, end, minutes };
+}
 
 function reply(...messages) {
   return { type: 'reply', messages };
@@ -80,6 +97,15 @@ function handleCommand(text, binding, startedAt) {
       return { session: { state: STATE.BIND_WAIT_CODE, draft: null }, effects: [reply(M.askBindCode())] };
     case COMMAND.CONTACT:
       return { session: idle(), effects: [{ type: 'showContact' }] };
+    case COMMAND.WATER:
+    case COMMAND.WATER_ADD:
+    case COMMAND.WATER_CLEAR:
+      if (!binding || binding.status !== 'ACTIVE') {
+        return { session: idle(), effects: [reply(M.text('ยังไม่ได้ผูกห้อง กด "ผูกเลขห้อง" ก่อนตั้งแจ้งเตือนน้ำ'))] };
+      }
+      if (text === COMMAND.WATER) return { session: idle(), effects: [{ type: 'showWaterRules' }] };
+      if (text === COMMAND.WATER_CLEAR) return { session: idle(), effects: [{ type: 'clearWaterRules' }] };
+      return { session: { state: STATE.WATER_RULE, draft: null }, effects: [reply(M.askWaterRule())] };
     default:
       return null;
   }
@@ -165,6 +191,14 @@ export function handle(session, binding, event) {
         return { session: current, effects: [{ type: 'createTicket', draft: current.draft }] };
       }
       return { session: current, effects: [reply(M.confirmReport(current.draft, CATEGORIES))] };
+    }
+
+    case STATE.WATER_RULE: {
+      const rule = parseWaterRule(text);
+      if (!rule) {
+        return { session: current, effects: [reply(M.text('รูปแบบไม่ถูกต้อง พิมพ์แบบนี้ 09:00-10:00 30 (นาทีต้องเป็น 5 ถึง 180 และหาร 5 ลงตัว)'), M.askWaterRule())] };
+      }
+      return { session: current, effects: [{ type: 'addWaterRule', rule }] };
     }
 
     default:

@@ -101,9 +101,31 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
       if (effect.type === 'showContact') replies.push(M.contact(await rpc('line_contact_text')));
       if (effect.type === 'redeemCode') replies.push(await redeemCode(client, userId, effect.code));
       if (effect.type === 'createTicket') replies.push(await submitReport(client, userId, effect.draft));
+      if (effect.type === 'showWaterRules') replies.push(await waterRulesMessage(userId));
+      if (effect.type === 'clearWaterRules') {
+        await rpc('line_clear_water_rules', { p_user_id: userId });
+        replies.push(M.text('ลบช่วงเวลาทั้งหมดแล้ว'), await waterRulesMessage(userId));
+      }
+      if (effect.type === 'addWaterRule') replies.push(...(await addWaterRule(userId, effect.rule)));
     }
     if (event.webhookEventId) await rpc('line_mark_processed', { p_event_id: event.webhookEventId });
     return replies;
+  }
+
+  async function waterRulesMessage(userId) {
+    const info = await rpc('line_water_rules', { p_user_id: userId });
+    if (!info) return M.text('ยังไม่ได้ผูกห้อง กด "ผูกเลขห้อง" ก่อนตั้งแจ้งเตือนน้ำ');
+    if (!info.has_device) return M.text(`ห้อง ${info.room_no} ยังไม่ได้ติดอุปกรณ์วัดน้ำ หากสนใจติดตั้ง กรุณาติดต่อผู้ดูแล`);
+    return M.waterRules(info.room_no, info.rules || []);
+  }
+
+  async function addWaterRule(userId, rule) {
+    const r = await rpc('line_add_water_rule', { p_user_id: userId, p_start: rule.start, p_end: rule.end, p_minutes: rule.minutes });
+    if (r.result === 'INVALID') return [M.text('รูปแบบไม่ถูกต้อง พิมพ์แบบนี้ 09:00-10:00 30'), M.askWaterRule()];
+    await setIdle(userId);
+    if (r.result === 'OK') return [M.text('บันทึกช่วงเวลาแล้ว'), await waterRulesMessage(userId)];
+    if (r.result === 'LIMIT') return [M.text('ตั้งได้สูงสุด 5 ช่วงเวลา ลบของเดิมก่อนแล้วตั้งใหม่'), await waterRulesMessage(userId)];
+    return [await waterRulesMessage(userId)];
   }
 
   async function statusMessage(roomNo) {

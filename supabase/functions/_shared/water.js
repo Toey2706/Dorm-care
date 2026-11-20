@@ -17,7 +17,9 @@ const num = (v, digits) => {
   return Number(n.toFixed(digits));
 };
 
-export async function handleWaterAlert({ roomExists, residents, push, staff, record, logger, now = () => new Date() }, body) {
+export const PING_MINUTES = 5;
+
+export async function handleWaterAlert({ roomExists, residents, push, staff, record, threshold, logger, now = () => new Date() }, body) {
   const roomNo = String(body.room ?? '').trim().toUpperCase();
   if (!roomNo) throw fail(400, 'invalid-argument', 'ไม่มีเลขห้อง');
   if (!(await roomExists(roomNo))) throw fail(404, 'not-found', 'ไม่พบห้องนี้');
@@ -25,9 +27,19 @@ export async function handleWaterAlert({ roomExists, residents, push, staff, rec
   const minutes = num(body.minutes ?? 0, 0);
   const flowLpm = num(body.flow_lpm ?? 0, 2);
   const totalL = num(body.total_l ?? 0, 1);
-  const timeText = now().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' });
+  const test = body.test === true;
+  const at = now();
 
-  const message = waterAlert({ roomNo, minutes, flowLpm, totalL, timeText });
+  let limit = null;
+  if (threshold && !test) {
+    limit = await threshold(roomNo, new Date(at.getTime() - minutes * 60_000));
+    if (!(minutes >= limit && minutes - PING_MINUTES < limit)) {
+      return { room: roomNo, skipped: true, threshold: limit };
+    }
+  }
+
+  const timeText = at.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' });
+  const message = waterAlert({ roomNo, minutes, flowLpm, totalL, timeText, test, limit });
   const userIds = await residents(roomNo);
   let line = 0;
   for (const id of userIds) {
@@ -60,7 +72,7 @@ export async function handleWaterAlert({ roomExists, residents, push, staff, rec
     }
   }
 
-  return { room: roomNo, line, residents: userIds.length, staff: staffResult };
+  return { room: roomNo, line, residents: userIds.length, staff: staffResult, threshold: limit };
 }
 
 const ONLINE_MS = 60_000;

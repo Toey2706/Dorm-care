@@ -19,6 +19,11 @@ const handler = jsonHandler((body: Record<string, unknown>) => {
         return (data ?? []).map((r: { line_user_id: string }) => r.line_user_id);
       },
       push: (to: string, messages: unknown[]) => line.push(to, messages),
+      threshold: async (roomNo: string, startedAt: Date) => {
+        const { data, error } = await db.rpc('water_threshold', { p_room_no: roomNo, p_at: startedAt.toISOString() });
+        if (error) throw error;
+        return Number(data);
+      },
       record: async (row: Record<string, unknown>) => {
         const { error } = await db.from('water_alerts').insert(row);
         if (error) throw error;

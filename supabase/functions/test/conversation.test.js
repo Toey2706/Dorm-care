@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handle, STATE } from '../_shared/conversation.js';
+import { handle, STATE, parseWaterRule } from '../_shared/conversation.js';
 
 const active = { status: 'ACTIVE', roomNo: '305' };
 const say = (text) => ({ kind: 'text', text });
@@ -59,4 +59,29 @@ test('รูปครบ 3 รูปไปขั้นยืนยันอั�
 test('ผูกห้องแล้วกดผูกซ้ำ แจ้งว่าผูกแล้ว', () => {
   const r = handle(null, active, say('ผูกเลขห้อง'));
   assert.match(r.effects[0].messages[0].altText ?? r.effects[0].messages[0].text, /ผูกกับห้อง 305 แล้ว/);
+});
+
+test('อ่านช่วงเวลาแจ้งเตือนน้ำได้หลายรูปแบบ และปฏิเสธค่าที่ไม่ถูกต้อง', () => {
+  assert.deepEqual(parseWaterRule('09:00-10:00 30'), { start: 540, end: 600, minutes: 30 });
+  assert.deepEqual(parseWaterRule('9.00 - 10.00 30 นาที'), { start: 540, end: 600, minutes: 30 });
+  assert.deepEqual(parseWaterRule('22:00 ถึง 02:00 60'), { start: 1320, end: 120, minutes: 60 });
+  assert.deepEqual(parseWaterRule('23:00-24:00 15'), { start: 1380, end: 0, minutes: 15 });
+  assert.equal(parseWaterRule('09:00-10:00 7'), null);
+  assert.equal(parseWaterRule('09:00-09:00 30'), null);
+  assert.equal(parseWaterRule('25:00-10:00 30'), null);
+  assert.equal(parseWaterRule('9 โมง 30 นาที'), null);
+});
+
+test('ตั้งแจ้งเตือนน้ำ: ต้องผูกห้องก่อน และพิมพ์ผิดยังอยู่ขั้นเดิม', () => {
+  assert.match(handle(null, null, say('ตั้งแจ้งเตือนน้ำ')).effects[0].messages[0].text, /ผูกเลขห้อง/);
+  let r = handle(null, active, say('ตั้งแจ้งเตือนน้ำ'));
+  assert.deepEqual(types(r), ['showWaterRules']);
+  r = handle(r.session, active, say('เพิ่มช่วงเวลา'));
+  assert.equal(r.session.state, STATE.WATER_RULE);
+  r = handle(r.session, active, say('เก้าโมง'));
+  assert.equal(r.session.state, STATE.WATER_RULE);
+  r = handle(r.session, active, say('09:00-10:00 30'));
+  assert.deepEqual(r.effects, [{ type: 'addWaterRule', rule: { start: 540, end: 600, minutes: 30 } }]);
+  r = handle(r.session, active, say('ยกเลิก'));
+  assert.equal(r.session.state, STATE.IDLE);
 });

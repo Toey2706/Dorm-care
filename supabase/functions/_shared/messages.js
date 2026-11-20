@@ -294,22 +294,52 @@ export function image(url) {
   return { type: 'image', originalContentUrl: url, previewImageUrl: url };
 }
 
-export function waterAlert({ roomNo, minutes, flowLpm, totalL, timeText }) {
+export function waterAlert({ roomNo, minutes, flowLpm, totalL, timeText, test = false, limit = null }) {
+  const title = test ? 'ทดสอบการแจ้งเตือน' : 'น้ำไหลต่อเนื่องผิดปกติ';
   const alt =
     `แจ้งเตือนจากอุปกรณ์วัดน้ำ ห้อง ${roomNo}\n` +
-    `น้ำไหลต่อเนื่อง ${minutes} นาที อัตราไหล ${flowLpm} L/min\n` +
-    'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจมีท่อหรือก๊อกรั่ว กด "แจ้งซ่อม" เพื่อแจ้งผู้ดูแล';
+    `${title} ไหลต่อเนื่อง ${minutes} นาที อัตราไหล ${flowLpm} L/min\n` +
+    'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจลืมปิดน้ำหรือมีท่อรั่ว';
+  const body = [
+    row('ห้อง', roomNo),
+    row('ไหลต่อเนื่อง', `${minutes} นาที`),
+    row('อัตราไหล', `${flowLpm} L/min`),
+    row('ปริมาณรวม', `${totalL} L`),
+    row('เวลา', timeText),
+  ];
+  if (limit) body.push(row('ตั้งไว้', `เตือนเมื่อไหลเกิน ${limit} นาที`));
+  body.push({ type: 'text', text: 'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจลืมปิดน้ำหรือมีท่อรั่ว', size: 'sm', color: INK, wrap: true });
   const b = bubble({
-    header: header('แจ้งเตือนจากอุปกรณ์วัดน้ำ', 'น้ำไหลต่อเนื่องผิดปกติ'),
-    body: [
-      row('ห้อง', roomNo),
-      row('ไหลต่อเนื่อง', `${minutes} นาที`),
-      row('อัตราไหล', `${flowLpm} L/min`),
-      row('ปริมาณรวม', `${totalL} L`),
-      row('เวลา', timeText),
-      { type: 'text', text: 'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจมีท่อหรือก๊อกรั่ว', size: 'sm', color: INK, wrap: true },
-    ],
-    footer: [button('แจ้งซ่อม', 'primary'), button('ติดต่อผู้ดูแล', 'secondary')],
+    header: header('แจ้งเตือนจากอุปกรณ์วัดน้ำ', title),
+    body,
+    footer: [button('แจ้งซ่อม', 'primary'), button('ตั้งแจ้งเตือนน้ำ', 'secondary')],
   });
-  return { ...flex(alt, b), quickReply: quickReply(['แจ้งซ่อม', 'ติดต่อผู้ดูแล']) };
+  return { ...flex(alt, b), quickReply: quickReply(['แจ้งซ่อม', 'ตั้งแจ้งเตือนน้ำ', 'ติดต่อผู้ดูแล']) };
+}
+
+const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+export function waterRules(roomNo, rules) {
+  const lines = rules.length
+    ? rules.map((r) => `${hhmm(r.start_min)}-${hhmm(r.end_min)} เตือนเมื่อไหลเกิน ${r.minutes} นาที`)
+    : ['ยังไม่ได้ตั้งช่วงเวลา'];
+  lines.push('เวลาอื่นเตือนเมื่อน้ำไหลต่อเนื่องเกิน 10 นาที');
+  const buttons = rules.length
+    ? [['เพิ่มช่วงเวลา', 'primary'], ['ลบช่วงเวลาทั้งหมด', 'secondary']]
+    : [['เพิ่มช่วงเวลา', 'primary']];
+  return card(`ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}\n${lines.join('\n')}`, { title: `ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}`, subtitle: 'ช่วงเวลาที่ตั้งไว้', lines, buttons });
+}
+
+export function askWaterRule() {
+  return card('พิมพ์ช่วงเวลาและจำนวนนาที เช่น 09:00-10:00 30', {
+    title: 'เพิ่มช่วงเวลา',
+    subtitle: 'พิมพ์เวลาและนาที',
+    lines: [
+      'พิมพ์ช่วงเวลาและจำนวนนาทีที่ให้เตือน เช่น',
+      '09:00-10:00 30',
+      'แปลว่าช่วง 9 โมงถึง 10 โมง ถ้าน้ำไหลต่อเนื่องเกิน 30 นาทีจึงเตือน',
+      'จำนวนนาทีใช้ 5 ถึง 180 และต้องหาร 5 ลงตัว',
+    ],
+    buttons: [['ยกเลิก', 'link']],
+  });
 }

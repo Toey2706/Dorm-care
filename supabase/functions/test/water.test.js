@@ -132,3 +132,29 @@ test('ไม่ส่งแจ้งเตือนผู้ดูแลเม�
   assert.deepEqual(r.staff, { sent: 0 });
   assert.deepEqual(errors, []);
 });
+
+test('เตือนเมื่อเวลาไหลข้ามค่าที่ตั้งไว้ครั้งเดียว ใช้เวลาเริ่มไหลหาช่วงเวลา', async () => {
+  const asked = [];
+  const threshold = async (room, startedAt) => (asked.push(startedAt.toISOString()), 30);
+  for (const [minutes, expectSent] of [[10, false], [25, false], [30, true], [35, false], [60, false]]) {
+    const { d, pushed } = deps({ threshold });
+    const r = await handleWaterAlert(d, { room: 'A1-01', minutes });
+    assert.equal(pushed.length > 0, expectSent, `minutes ${minutes}`);
+    assert.equal(r.threshold, 30);
+    if (!expectSent) assert.equal(r.skipped, true);
+  }
+  assert.equal(asked[2], '2026-11-19T14:30:00.000Z');
+});
+
+test('ค่าที่ตั้งไม่หาร 5 ลงตัวก็ยังเตือนที่รอบแรกที่เกิน', async () => {
+  const { d, pushed } = deps({ threshold: async () => 12 });
+  await handleWaterAlert(d, { room: 'A1-01', minutes: 15 });
+  assert.equal(pushed.length, 2);
+});
+
+test('คำสั่งทดสอบส่งทันทีโดยไม่ดูช่วงเวลา และการ์ดบอกว่าเป็นการทดสอบ', async () => {
+  const { d, pushed } = deps({ threshold: async () => 30 });
+  await handleWaterAlert(d, { room: 'A1-01', minutes: 0, test: true });
+  assert.equal(pushed.length, 2);
+  assert.match(pushed[0][1][0].altText, /ทดสอบการแจ้งเตือน/);
+});
