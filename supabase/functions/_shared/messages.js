@@ -330,16 +330,55 @@ export function waterRules(roomNo, rules, defaultMinutes = 10) {
   return card(`ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}\n${lines.join('\n')}`, { title: `ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}`, subtitle: 'ช่วงเวลาที่ตั้งไว้', lines, buttons });
 }
 
-export function askWaterRule() {
-  return card('พิมพ์ช่วงเวลาและจำนวนนาที เช่น 09:00-10:00 30 หรือ ทั้งวัน 20', {
+export function askWaterMode() {
+  return card('ตั้งเวลาแจ้งเตือนน้ำ เลือก เฉพาะช่วงเวลา หรือ ทั้งวัน', {
     title: 'ตั้งเวลาแจ้งเตือน',
-    subtitle: 'พิมพ์เวลาและนาที',
+    subtitle: 'ตั้งแบบไหน',
     lines: [
-      'ตั้งเฉพาะช่วงเวลา พิมพ์ เช่น 09:00-10:00 30',
-      'แปลว่าช่วง 9 โมงถึง 10 โมง ถ้าน้ำไหลต่อเนื่องเกิน 30 นาทีจึงเตือน',
-      'ตั้งค่าสำหรับเวลาอื่นทั้งหมด พิมพ์ เช่น ทั้งวัน 20',
-      'จำนวนนาทีใช้ 5 ถึง 180 และต้องหาร 5 ลงตัว',
+      'เฉพาะช่วงเวลา: เลือกเวลาเริ่ม เวลาสิ้นสุด แล้วเลือกว่าน้ำไหลเกินกี่นาทีจึงเตือน',
+      'ทั้งวัน: เลือกว่าเวลาอื่นทั้งหมด น้ำไหลเกินกี่นาทีจึงเตือน',
     ],
-    buttons: [['ยกเลิก', 'link']],
+    buttons: [['เฉพาะช่วงเวลา', 'primary'], ['ทั้งวัน', 'secondary'], ['ยกเลิก', 'link']],
   });
+}
+
+const timePicker = (label, data, initial) => ({ type: 'datetimepicker', label, data, mode: 'time', initial });
+
+export function askWaterTime(which, startMin = null) {
+  const isStart = which === 'start';
+  const label = isStart ? 'เลือกเวลาเริ่ม' : 'เลือกเวลาสิ้นสุด';
+  const initial = isStart ? '09:00' : hhmm(((startMin ?? 540) + 60) % 1440);
+  const action = timePicker(label, isStart ? 'water:start' : 'water:end', initial);
+  const lines = isStart ? ['กดปุ่มด้านล่างเพื่อเลือกเวลาเริ่ม'] : [`เวลาเริ่ม ${hhmm(startMin)}`, 'กดปุ่มด้านล่างเพื่อเลือกเวลาสิ้นสุด'];
+  const b = bubble({
+    header: header('ตั้งเวลาแจ้งเตือน', label),
+    body: lines.map((l) => ({ type: 'text', text: l, size: 'sm', color: INK, wrap: true })),
+    footer: [
+      { type: 'button', style: 'primary', height: 'sm', color: BRAND, action },
+      button('ยกเลิก', 'link'),
+    ],
+  });
+  return {
+    ...flex(`${label} (กดปุ่มในข้อความเพื่อเลือกเวลา)`, b),
+    quickReply: { items: [{ type: 'action', action }, { type: 'action', action: { type: 'message', label: 'ยกเลิก', text: 'ยกเลิก' } }] },
+  };
+}
+
+export function askWaterMinutes(window, choices) {
+  const scope = window ? `ช่วง ${hhmm(window.start)}-${hhmm(window.end)}` : 'ทั้งวัน (เวลาอื่นทั้งหมด)';
+  const labels = choices.map((n) => `${n} นาที`);
+  const rows = [];
+  for (let i = 0; i < labels.length; i += 3) {
+    rows.push({ type: 'box', layout: 'horizontal', spacing: 'sm', contents: labels.slice(i, i + 3).map((l) => button(l, 'secondary')) });
+  }
+  rows.push(button('ยกเลิก', 'link'));
+  const b = bubble({
+    header: header('ตั้งเวลาแจ้งเตือน', 'ไหลเกินกี่นาทีจึงเตือน'),
+    body: [
+      { type: 'text', text: scope, size: 'md', weight: 'bold', color: INK, wrap: true },
+      { type: 'text', text: 'เลือกว่าน้ำไหลต่อเนื่องเกินกี่นาทีจึงแจ้งเตือน หรือพิมพ์ตัวเลขเอง (5 ถึง 180 หาร 5 ลงตัว)', size: 'sm', color: MUTED, wrap: true },
+    ],
+    footer: rows,
+  });
+  return { ...flex(`${scope} น้ำไหลเกินกี่นาทีจึงเตือน`, b), quickReply: quickReply([...labels, 'ยกเลิก']) };
 }

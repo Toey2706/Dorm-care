@@ -25,6 +25,7 @@ const categoryLabel = (code) => (conversation.CATEGORIES.find((c) => c.code === 
 function toConversationEvent(event) {
   const at = typeof event.timestamp === 'number' ? event.timestamp : 0;
   if (event.type === 'follow') return { kind: 'follow', at };
+  if (event.type === 'postback') return { kind: 'postback', data: event.postback && event.postback.data, params: (event.postback && event.postback.params) || {}, at };
   if (event.type !== 'message') return null;
   if (event.message.type === 'text') return { kind: 'text', text: event.message.text, at };
   if (event.message.type === 'image') return { kind: 'image', messageId: event.message.id, at };
@@ -123,7 +124,7 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
     const r = rule.allDay
       ? await rpc('line_set_water_default', { p_user_id: userId, p_minutes: rule.minutes })
       : await rpc('line_add_water_rule', { p_user_id: userId, p_start: rule.start, p_end: rule.end, p_minutes: rule.minutes });
-    if (r.result === 'INVALID') return [M.text('รูปแบบไม่ถูกต้อง พิมพ์แบบนี้ 09:00-10:00 30'), M.askWaterRule()];
+    if (r.result === 'INVALID') return [M.text('ค่าที่เลือกไม่ถูกต้อง กรุณาเลือกใหม่'), M.askWaterMode()];
     await setIdle(userId);
     if (r.result === 'OK') return [M.text('บันทึกช่วงเวลาแล้ว'), await waterRulesMessage(userId)];
     if (r.result === 'LIMIT') return [M.text('ตั้งได้สูงสุด 5 ช่วงเวลา ลบของเดิมก่อนแล้วตั้งใหม่'), await waterRulesMessage(userId)];

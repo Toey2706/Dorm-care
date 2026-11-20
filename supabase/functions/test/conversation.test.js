@@ -88,3 +88,31 @@ test('ตั้งแจ้งเตือนน้ำ: ต้องผูกห
   r = handle(r.session, active, say('ยกเลิก'));
   assert.equal(r.session.state, STATE.IDLE);
 });
+
+test('ตั้งเวลาแจ้งเตือนแบบกดปุ่ม: เลือกเวลาเริ่ม เวลาสิ้นสุด แล้วเลือกนาที', () => {
+  const pick = (data, time) => ({ kind: 'postback', data, params: { time } });
+  let r = handle(null, active, say('ตั้งเวลาแจ้งเตือน'));
+  assert.equal(r.session.state, STATE.WATER_RULE);
+  r = handle(r.session, active, say('เฉพาะช่วงเวลา'));
+  assert.equal(r.session.state, STATE.WATER_START);
+  r = handle(r.session, active, pick('water:end', '10:00'));
+  assert.equal(r.session.state, STATE.WATER_START, 'กดปุ่มเก่าผิดขั้นไม่ไปต่อ');
+  r = handle(r.session, active, pick('water:start', '09:00'));
+  assert.deepEqual(r.session, { state: STATE.WATER_END, draft: { start: 540 } });
+  r = handle(r.session, active, pick('water:end', '09:00'));
+  assert.equal(r.session.state, STATE.WATER_END, 'เวลาเดียวกันไม่ได้');
+  r = handle(r.session, active, pick('water:end', '10:00'));
+  assert.deepEqual(r.session, { state: STATE.WATER_MINUTES, draft: { start: 540, end: 600 } });
+  r = handle(r.session, active, say('เยอะๆ'));
+  assert.equal(r.session.state, STATE.WATER_MINUTES);
+  r = handle(r.session, active, say('30 นาที'));
+  assert.deepEqual(r.effects, [{ type: 'addWaterRule', rule: { start: 540, end: 600, minutes: 30 } }]);
+});
+
+test('ตั้งเวลาแจ้งเตือนแบบกดปุ่ม: ทั้งวัน', () => {
+  let r = handle(null, active, say('ตั้งเวลาแจ้งเตือน'));
+  r = handle(r.session, active, say('ทั้งวัน'));
+  assert.deepEqual(r.session, { state: STATE.WATER_MINUTES, draft: { allDay: true } });
+  r = handle(r.session, active, say('20'));
+  assert.deepEqual(r.effects, [{ type: 'addWaterRule', rule: { allDay: true, minutes: 20 } }]);
+});

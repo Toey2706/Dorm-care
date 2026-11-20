@@ -34,7 +34,13 @@ export const STATE = Object.freeze({
   REPORT_PHOTO: 'REPORT_PHOTO',
   REPORT_CONFIRM: 'REPORT_CONFIRM',
   WATER_RULE: 'WATER_RULE',
+  WATER_START: 'WATER_START',
+  WATER_END: 'WATER_END',
+  WATER_MINUTES: 'WATER_MINUTES',
 });
+
+export const WATER_MODE = Object.freeze({ WINDOW: 'เฉพาะช่วงเวลา', ALL_DAY: 'ทั้งวัน' });
+export const WATER_MINUTE_CHOICES = Object.freeze([5, 10, 15, 20, 30, 45, 60, 90, 120]);
 
 /** หมวดงานตาม Prototype (รหัสรอยืนยันกับ RPT-05 ใน Data Element Design) */
 export const CATEGORIES = Object.freeze([
@@ -112,7 +118,7 @@ function handleCommand(text, binding, startedAt) {
       }
       if (text === COMMAND.WATER) return { session: idle(), effects: [{ type: 'showWaterRules' }] };
       if (text === COMMAND.WATER_CLEAR) return { session: idle(), effects: [{ type: 'clearWaterRules' }] };
-      return { session: { state: STATE.WATER_RULE, draft: null }, effects: [reply(M.askWaterRule())] };
+      return { session: { state: STATE.WATER_RULE, draft: null }, effects: [reply(M.askWaterMode())] };
     default:
       return null;
   }
@@ -125,6 +131,59 @@ function handleCommand(text, binding, startedAt) {
  *   at = เวลาของเหตุการณ์ (ms) ใช้เป็นรหัสร่างแจ้งซ่อม ทำให้กดยืนยันซ้ำแล้วไม่เกิดใบงานซ้ำ
  */
 const isBound = (binding) => Boolean(binding && binding.status === 'ACTIVE');
+
+const TIME_PATTERN = /^(\d{2}):(\d{2})$/;
+const toMinute = (time) => {
+  const m = TIME_PATTERN.exec(String(time || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+const minuteChoice = (text) => {
+  const m = /^(\d{1,3})(?:\s*นาที)?$/.exec(String(text || '').trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  return n >= 5 && n <= 180 && n % 5 === 0 ? n : null;
+};
+
+function handleWater(current, text, event) {
+  const typed = text ? parseWaterRule(text) : null;
+  if (typed) return { session: current, effects: [{ type: 'addWaterRule', rule: typed }] };
+  const draft = current.draft || {};
+  const picked = event.kind === 'postback' ? toMinute(event.params && event.params.time) : null;
+
+  switch (current.state) {
+    case STATE.WATER_RULE:
+      if (text === WATER_MODE.WINDOW) return { session: { state: STATE.WATER_START, draft: {} }, effects: [reply(M.askWaterTime('start'))] };
+      if (text === WATER_MODE.ALL_DAY) {
+        return { session: { state: STATE.WATER_MINUTES, draft: { allDay: true } }, effects: [reply(M.askWaterMinutes(null, WATER_MINUTE_CHOICES))] };
+      }
+      return { session: current, effects: [reply(M.askWaterMode())] };
+
+    case STATE.WATER_START:
+      if (event.kind === 'postback' && event.data === 'water:start' && picked !== null) {
+        return { session: { state: STATE.WATER_END, draft: { start: picked } }, effects: [reply(M.askWaterTime('end', picked))] };
+      }
+      return { session: current, effects: [reply(M.askWaterTime('start'))] };
+
+    case STATE.WATER_END:
+      if (event.kind === 'postback' && event.data === 'water:end' && picked !== null) {
+        if (picked === draft.start) {
+          return { session: current, effects: [reply(M.text('เวลาสิ้นสุดต้องไม่ตรงกับเวลาเริ่ม'), M.askWaterTime('end', draft.start))] };
+        }
+        const next = { start: draft.start, end: picked };
+        return { session: { state: STATE.WATER_MINUTES, draft: next }, effects: [reply(M.askWaterMinutes(next, WATER_MINUTE_CHOICES))] };
+      }
+      return { session: current, effects: [reply(M.askWaterTime('end', draft.start))] };
+
+    default: {
+      const minutes = minuteChoice(text);
+      if (minutes === null) {
+        return { session: current, effects: [reply(M.askWaterMinutes(draft.allDay ? null : draft, WATER_MINUTE_CHOICES))] };
+      }
+      const rule = draft.allDay ? { allDay: true, minutes } : { start: draft.start, end: draft.end, minutes };
+      return { session: current, effects: [{ type: 'addWaterRule', rule }] };
+    }
+  }
+}
 
 export function handle(session, binding, event) {
   const current = session && session.state ? session : idle();
@@ -200,13 +259,11 @@ export function handle(session, binding, event) {
       return { session: current, effects: [reply(M.confirmReport(current.draft, CATEGORIES))] };
     }
 
-    case STATE.WATER_RULE: {
-      const rule = parseWaterRule(text);
-      if (!rule) {
-        return { session: current, effects: [reply(M.text('รูปแบบไม่ถูกต้อง พิมพ์แบบนี้ 09:00-10:00 30 หรือ ทั้งวัน 20 (นาทีต้องเป็น 5 ถึง 180 และหาร 5 ลงตัว)'), M.askWaterRule())] };
-      }
-      return { session: current, effects: [{ type: 'addWaterRule', rule }] };
-    }
+    case STATE.WATER_RULE:
+    case STATE.WATER_START:
+    case STATE.WATER_END:
+    case STATE.WATER_MINUTES:
+      return handleWater(current, text, event);
 
     default:
       return { session: idle(), effects: [reply(M.help(isBound(binding)))] };
