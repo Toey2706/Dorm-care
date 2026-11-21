@@ -105,3 +105,11 @@ Widget readable(Widget child) {
     child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 900), child: child),
   );
 }
+
+Widget readableBar(Widget child) {
+  return Align(
+    alignment: Alignment.topCenter,
+    heightFactor: 1,
+    child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 900), child: child),
+  );
+}

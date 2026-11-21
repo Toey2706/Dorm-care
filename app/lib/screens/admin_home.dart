@@ -66,6 +66,7 @@ class _TicketsPage extends StatefulWidget {
 class _TicketsPageState extends State<_TicketsPage> {
   static const pageSize = 30;
   _Filter _filter = _Filter.open;
+  String? _category;
   bool _oldestFirst = false; // งานค้างเรียงเก่าสุดก่อน ไว้ไล่เคลียร์งานที่รอนาน
   int _completedLimit = pageSize;
   final _searchController = TextEditingController();
@@ -111,12 +112,15 @@ class _TicketsPageState extends State<_TicketsPage> {
     }
   }
 
+  List<Ticket> _byCategory(List<Ticket> items) =>
+      _category == null ? items : items.where((t) => t.category == _category).toList();
+
   List<Ticket> _apply(List<Ticket> items) {
-    final list = switch (_filter) {
+    final list = _byCategory(switch (_filter) {
       _Filter.pending => items.where((t) => t.stage == TicketStage.pending).toList(),
       _Filter.repairing => items.where((t) => t.stage == TicketStage.repairing).toList(),
       _Filter.open || _Filter.notNotified || _Filter.completed => List.of(items),
-    };
+    });
     // ข้อมูลมาเรียงใหม่สุดก่อนอยู่แล้ว กลับลำดับอย่างเดียวพอ (ไม่ใช้กับงานเสร็จที่โหลดทีละหน้า)
     return _oldestFirst && _filter != _Filter.completed ? list.reversed.toList() : list;
   }
@@ -138,8 +142,33 @@ class _TicketsPageState extends State<_TicketsPage> {
     if (mounted) _refreshCounts();
   }
 
+  Widget _categoryChips() {
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          for (final entry in <String?, String>{null: 'ทุกหมวด', ...categoryLabels}.entries)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: FilterChip(
+                visualDensity: VisualDensity.compact,
+                label: Text(entry.value),
+                selected: _category == entry.key,
+                showCheckmark: false,
+                onSelected: (_) => setState(() => _category = entry.key),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _list(List<Ticket> items, {Widget? footer}) {
-    if (items.isEmpty) return const Center(child: Text('ไม่มีรายการ'));
+    if (items.isEmpty) {
+      return Center(child: Text(_category == null ? 'ไม่มีรายการ' : 'ไม่มีรายการในหมวด${categoryLabels[_category]}'));
+    }
     return TicketListView(
       footer: footer,
       children: [for (final t in items) TicketTile(ticket: t, onTap: () => _openTicket(t))],
@@ -210,6 +239,7 @@ class _TicketsPageState extends State<_TicketsPage> {
               ),
             ),
           ),
+        _categoryChips(),
         Expanded(
           child: _searchResult != null
               ? FutureBuilder<List<Ticket>>(
@@ -217,7 +247,7 @@ class _TicketsPageState extends State<_TicketsPage> {
                   builder: (context, snap) {
                     if (snap.hasError) return LoadError(snap.error!, prefix: 'ค้นหาไม่สำเร็จ');
                     if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-                    return _list(snap.data!);
+                    return _list(_byCategory(snap.data!));
                   },
                 )
               : StreamBuilder<List<Ticket>>(

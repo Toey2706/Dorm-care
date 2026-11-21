@@ -26,7 +26,7 @@ class TicketDetailScreen extends StatelessWidget {
               : t == null
                   ? const Center(child: CircularProgressIndicator())
                   : readable(_Body(ticket: t)),
-          bottomNavigationBar: t == null ? null : readable(_Actions(ticket: t, me: me)),
+          bottomNavigationBar: t == null ? null : readableBar(_Actions(ticket: t, me: me)),
         );
       },
     );
@@ -75,7 +75,7 @@ class _Body extends StatelessWidget {
           if (t.completedAt != null) row('ซ่อมเสร็จเมื่อ', thaiDate(t.completedAt)),
           if (t.notifiedAt != null) row('แจ้ง LINE เมื่อ', thaiDate(t.notifiedAt)),
         ]),
-        section('รายละเอียดจากผู้แจ้ง', [Text(t.description), const SizedBox(height: 8), StoragePhotos('resident-photos', t.photoPaths)]),
+        section('รายละเอียดจากผู้แจ้ง', [Text(t.description.isEmpty ? '-' : t.description),const SizedBox(height: 8), StoragePhotos('resident-photos', t.photoPaths)]),
         if (t.repairResult != null)
           section('ผลการตรวจและซ่อม', [
             row('สิ่งที่ตรวจพบ', t.inspectionNote ?? '-'),
@@ -87,9 +87,10 @@ class _Body extends StatelessWidget {
           StreamBuilder<List<HistoryEntry>>(
             stream: Api.instance.history(t.id),
             builder: (context, snap) {
+              if (snap.hasError) return Text('โหลดประวัติไม่สำเร็จ', style: TextStyle(color: Theme.of(context).colorScheme.error));
               if (!snap.hasData) return const LinearProgressIndicator();
               final items = snap.data!;
-              // เส้นเวลาแนวตั้ง จุดล่าสุดเป็นสีหลัก อ่านลำดับเหตุการณ์ได้ง่ายกว่ารายการจุดธรรมดา
+              if (items.isEmpty) return const Text('ยังไม่มีประวัติ');
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
