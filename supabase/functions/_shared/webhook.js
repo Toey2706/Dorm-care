@@ -102,8 +102,8 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
       if (effect.type === 'showContact') replies.push(M.contact(await rpc('line_contact_text')));
       if (effect.type === 'redeemCode') replies.push(await redeemCode(client, userId, effect.code));
       if (effect.type === 'createTicket') replies.push(await submitReport(client, userId, effect.draft));
-      if (effect.type === 'showWaterRules') replies.push(...(await waterMessages(userId, true)));
-      if (effect.type === 'showWaterUsage') replies.push(...(await waterMessages(userId, false)));
+      if (effect.type === 'showWaterRules') replies.push(await waterRulesMessage(userId));
+      if (effect.type === 'showWaterUsage') replies.push(...(await waterMessages(userId)));
       if (effect.type === 'clearWaterRules') {
         await rpc('line_clear_water_rules', { p_user_id: userId });
         replies.push(M.text('ลบช่วงเวลาทั้งหมดแล้ว'), await waterRulesMessage(userId));
@@ -135,13 +135,11 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
     }
   }
 
-  async function waterMessages(userId, withRules) {
+  async function waterMessages(userId) {
     const info = await rpc('line_water_rules', { p_user_id: userId });
     if (!info || !info.has_device) return [noWaterMessage(info)];
     const usage = await usageOf(info.room_no);
-    const rules = M.waterRules(info.room_no, info.rules || [], info.default_minutes || 10);
-    if (!usage) return withRules ? [rules] : [M.text('ยังอ่านปริมาณการใช้น้ำไม่ได้ ลองใหม่อีกครั้งภายหลัง')];
-    return withRules ? [M.waterUsage(info.room_no, usage), rules] : [M.waterUsage(info.room_no, usage)];
+    return [usage ? M.waterUsage(info.room_no, usage) : M.text('ยังอ่านปริมาณการใช้น้ำไม่ได้ ลองใหม่อีกครั้งภายหลัง')];
   }
 
   async function addWaterRule(userId, rule) {

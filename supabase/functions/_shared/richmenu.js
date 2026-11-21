@@ -27,7 +27,7 @@ export const MENUS = {
   },
   [ALIAS.BOUND_WATER]: {
     image: 'rm-bound-water.png',
-    body: { size: { width: W, height: H }, selected: true, name: 'ผูกห้องแล้ว มีอุปกรณ์วัดน้ำ', chatBarText: 'เมนู', areas: areas(['แจ้งซ่อม', 'ติดตามงาน', 'ตั้งแจ้งเตือนน้ำ', 'ติดต่อผู้ดูแล']) },
+    body: { size: { width: W, height: H }, selected: true, name: 'ผูกห้องแล้ว มีอุปกรณ์วัดน้ำ', chatBarText: 'เมนู', areas: areas(['แจ้งซ่อม', 'ติดตามงาน', 'ดูการใช้น้ำ', 'ตั้งแจ้งเตือนน้ำ', 'ติดต่อผู้ดูแล']) },
   },
 };
 
