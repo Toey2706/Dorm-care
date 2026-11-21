@@ -405,7 +405,7 @@ export function askWaterMinutes(window, choices) {
     header: header('ตั้งเวลาแจ้งเตือน', 'ไหลเกินกี่นาทีจึงเตือน'),
     body: [
       { type: 'text', text: scope, size: 'md', weight: 'bold', color: INK, wrap: true },
-      { type: 'text', text: 'เลือกว่าน้ำไหลต่อเนื่องเกินกี่นาทีจึงแจ้งเตือน หรือพิมพ์ตัวเลขเอง (5 ถึง 180 หาร 5 ลงตัว)', size: 'sm', color: MUTED, wrap: true },
+      { type: 'text', text: 'เลือกว่าน้ำไหลต่อเนื่องเกินกี่นาทีจึงแจ้งเตือน หรือพิมพ์ตัวเลขเองได้เลย เช่น 7 หรือ 25 (1 ถึง 180 นาที)', size: 'sm', color: MUTED, wrap: true },
     ],
     footer: rows,
   });

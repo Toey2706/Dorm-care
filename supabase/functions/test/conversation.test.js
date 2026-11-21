@@ -66,13 +66,16 @@ test('อ่านช่วงเวลาแจ้งเตือนน้ำ�
   assert.deepEqual(parseWaterRule('9.00 - 10.00 30 นาที'), { start: 540, end: 600, minutes: 30 });
   assert.deepEqual(parseWaterRule('22:00 ถึง 02:00 60'), { start: 1320, end: 120, minutes: 60 });
   assert.deepEqual(parseWaterRule('23:00-24:00 15'), { start: 1380, end: 0, minutes: 15 });
-  assert.equal(parseWaterRule('09:00-10:00 7'), null);
+  assert.deepEqual(parseWaterRule('09:00-10:00 7'), { start: 540, end: 600, minutes: 7 });
+  assert.equal(parseWaterRule('09:00-10:00 0'), null);
+  assert.equal(parseWaterRule('09:00-10:00 181'), null);
   assert.equal(parseWaterRule('09:00-09:00 30'), null);
   assert.equal(parseWaterRule('25:00-10:00 30'), null);
   assert.equal(parseWaterRule('9 โมง 30 นาที'), null);
   assert.deepEqual(parseWaterRule('ทั้งวัน 20'), { allDay: true, minutes: 20 });
   assert.deepEqual(parseWaterRule('ทั้งวัน 15 นาที'), { allDay: true, minutes: 15 });
-  assert.equal(parseWaterRule('ทั้งวัน 3'), null);
+  assert.deepEqual(parseWaterRule('ทั้งวัน 3'), { allDay: true, minutes: 3 });
+  assert.equal(parseWaterRule('ทั้งวัน 200'), null);
 });
 
 test('ตั้งแจ้งเตือนน้ำ: ต้องผูกห้องก่อน และพิมพ์ผิดยังอยู่ขั้นเดิม', () => {

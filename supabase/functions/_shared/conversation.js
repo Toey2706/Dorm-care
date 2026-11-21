@@ -42,6 +42,9 @@ export const STATE = Object.freeze({
 
 export const WATER_MODE = Object.freeze({ WINDOW: 'เฉพาะช่วงเวลา', ALL_DAY: 'ทั้งวัน' });
 export const WATER_MINUTE_CHOICES = Object.freeze([5, 10, 15, 20, 30, 45, 60, 90, 120]);
+export const WATER_MINUTES_MIN = 1;
+export const WATER_MINUTES_MAX = 180;
+const validMinutes = (n) => Number.isInteger(n) && n >= WATER_MINUTES_MIN && n <= WATER_MINUTES_MAX;
 
 /** หมวดงานตาม Prototype (รหัสรอยืนยันกับ RPT-05 ใน Data Element Design) */
 export const CATEGORIES = Object.freeze([
@@ -66,7 +69,7 @@ export function parseWaterRule(input) {
   const d = DEFAULT_PATTERN.exec(String(input || '').trim());
   if (d) {
     const minutes = Number(d[1]);
-    return minutes >= 5 && minutes <= 180 && minutes % 5 === 0 ? { allDay: true, minutes } : null;
+    return validMinutes(minutes) ? { allDay: true, minutes } : null;
   }
   const m = RULE_PATTERN.exec(String(input || '').trim());
   if (!m) return null;
@@ -74,7 +77,7 @@ export function parseWaterRule(input) {
   if (h1 > 23 || h2 > 24 || m1 > 59 || m2 > 59 || (h2 === 24 && m2 > 0)) return null;
   const start = h1 * 60 + m1;
   const end = (h2 * 60 + m2) % 1440;
-  if (start === end || minutes < 5 || minutes > 180 || minutes % 5 !== 0) return null;
+  if (start === end || !validMinutes(minutes)) return null;
   return { start, end, minutes };
 }
 
@@ -144,7 +147,7 @@ const minuteChoice = (text) => {
   const m = /^(\d{1,3})(?:\s*นาที)?$/.exec(String(text || '').trim());
   if (!m) return null;
   const n = Number(m[1]);
-  return n >= 5 && n <= 180 && n % 5 === 0 ? n : null;
+  return validMinutes(n) ? n : null;
 };
 
 function handleWater(current, text, event) {

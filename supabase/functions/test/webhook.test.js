@@ -324,3 +324,21 @@ test('ห้องที่ไม่มีอุปกรณ์วัดน้�
   await t.say('ดูการใช้น้ำ');
   assert.match(t.last(), /ยังไม่ได้ติดอุปกรณ์วัดน้ำ/);
 });
+
+test('พิมพ์จำนวนนาทีเองได้ ไม่ต้องเลือกจากปุ่ม', async () => {
+  const t = setup();
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  let n = 200;
+  const pick = (data, time) => t.hook.handleAll(t.line.client, [{ type: 'postback', webhookEventId: `p${++n}`, replyToken: `t${n}`, timestamp: 1000, source: { type: 'user', userId: 'U1' }, postback: { data, params: { time } } }]);
+  await t.say('ตั้งเวลาแจ้งเตือน');
+  await t.say('เฉพาะช่วงเวลา');
+  await pick('water:start', '09:00');
+  await pick('water:end', '10:00');
+  assert.match(t.last(), /พิมพ์ตัวเลขเองได้|น้ำไหลเกินกี่นาที/);
+  await t.say('7');
+  assert.deepEqual(t.db.s.rules, [{ start_min: 540, end_min: 600, minutes: 7 }]);
+  await t.say('ตั้งเวลาแจ้งเตือน');
+  await t.say('ทั้งวัน');
+  await t.say('25 นาที');
+  assert.equal(t.db.s.defaultMinutes, 25);
+});

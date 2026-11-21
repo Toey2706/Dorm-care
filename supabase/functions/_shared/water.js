@@ -25,6 +25,7 @@ export async function handleWaterAlert({ roomExists, residents, push, staff, rec
   if (!(await roomExists(roomNo))) throw fail(404, 'not-found', 'ไม่พบห้องนี้');
 
   const minutes = num(body.minutes ?? 0, 0);
+  const step = Math.max(1, Math.min(PING_MINUTES, Math.round(Number(body.step) || PING_MINUTES)));
   const flowLpm = num(body.flow_lpm ?? 0, 2);
   const totalL = num(body.total_l ?? 0, 1);
   const test = body.test === true;
@@ -33,7 +34,7 @@ export async function handleWaterAlert({ roomExists, residents, push, staff, rec
   let limit = null;
   if (threshold && !test) {
     limit = await threshold(roomNo, new Date(at.getTime() - minutes * 60_000));
-    if (!(minutes >= limit && minutes - PING_MINUTES < limit)) {
+    if (!(minutes >= limit && minutes - step < limit)) {
       return { room: roomNo, skipped: true, threshold: limit };
     }
   }

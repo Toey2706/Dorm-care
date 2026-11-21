@@ -10,7 +10,7 @@ do $$ begin if public.line_add_water_rule('Uwater1', 1320, 120, 60)->>'result' <
 do $$ begin if public.water_threshold('A1-01', '2026-11-20 23:30+07') <> 60 or public.water_threshold('A1-01', '2026-11-21 01:59+07') <> 60 then raise exception 'overnight'; end if; end $$;
 do $$ begin if public.line_add_water_rule('Uwater1', 540, 560, 45)->>'result' <> 'OK' then raise exception 'add overlap'; end if; end $$;
 do $$ begin if public.water_threshold('A1-01', '2026-11-20 09:10+07') <> 45 then raise exception 'overlap max'; end if; end $$;
-do $$ begin if public.line_add_water_rule('Uwater1', 540, 600, 7)->>'result' <> 'INVALID' then raise exception 'step 5'; end if; end $$;
+do $$ begin if public.line_add_water_rule('Uwater1', 540, 600, 181)->>'result' <> 'INVALID' or public.line_add_water_rule('Uwater1', 540, 600, 0)->>'result' <> 'INVALID' then raise exception 'minutes range'; end if; end $$;
 do $$ begin if public.line_add_water_rule('Uwater1', 540, 540, 30)->>'result' <> 'INVALID' then raise exception 'empty window'; end if; end $$;
 do $$ begin if public.line_add_water_rule('Uwater2', 540, 600, 30)->>'result' <> 'NO_DEVICE' then raise exception 'no device'; end if; end $$;
 do $$ begin if public.line_add_water_rule('Unobody', 540, 600, 30)->>'result' <> 'NO_BINDING' then raise exception 'no binding'; end if; end $$;
@@ -23,5 +23,9 @@ do $$ begin if public.line_set_water_default('Uwater1', 20)->>'result' <> 'OK' t
 do $$ begin if public.water_threshold('A1-01', '2026-11-20 13:00+07') <> 20 then raise exception 'default used'; end if; end $$;
 do $$ begin perform public.line_add_water_rule('Uwater1', 540, 600, 45); if public.water_threshold('A1-01', '2026-11-20 09:30+07') <> 45 then raise exception 'rule over default'; end if; end $$;
 do $$ begin if (public.line_water_rules('Uwater1')->>'default_minutes')::int <> 20 then raise exception 'default listed'; end if; end $$;
-do $$ begin if public.line_set_water_default('Uwater1', 7)->>'result' <> 'INVALID' then raise exception 'default step'; end if; end $$;
+do $$ begin if public.line_set_water_default('Uwater1', 7)->>'result' <> 'OK' then raise exception 'default any minute'; end if; end $$;
+do $$ begin if public.water_threshold('A1-01', '2026-11-20 13:00+07') <> 7 then raise exception 'default any minute used'; end if; end $$;
+do $$ begin if public.line_set_water_default('Uwater1', 181)->>'result' <> 'INVALID' then raise exception 'default range'; end if; end $$;
+do $$ begin if public.line_add_water_rule('Uwater1', 600, 660, 13)->>'result' <> 'OK' then raise exception 'rule any minute'; end if; end $$;
+do $$ begin if public.water_threshold('A1-01', '2026-11-20 10:30+07') <> 13 then raise exception 'rule any minute used'; end if; end $$;
 do $$ begin if public.line_set_water_default('Uwater2', 20)->>'result' <> 'NO_DEVICE' then raise exception 'default no device'; end if; end $$;

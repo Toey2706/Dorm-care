@@ -152,6 +152,24 @@ test('ค่าที่ตั้งไม่หาร 5 ลงตัวก็�
   assert.equal(pushed.length, 2);
 });
 
+test('บอร์ดที่ส่งทุก 1 นาที เตือนตรงนาทีที่ตั้ง ไม่ว่าจะตั้งกี่นาที', async () => {
+  for (const [minutes, expectSent] of [[6, false], [7, true], [8, false]]) {
+    const { d, pushed } = deps({ threshold: async () => 7 });
+    await handleWaterAlert(d, { room: 'A1-01', minutes, step: 1 });
+    assert.equal(pushed.length > 0, expectSent, `minutes ${minutes}`);
+  }
+});
+
+test('บอร์ดรุ่นเก่าที่ไม่ส่ง step ยังนับรอบละ 5 นาที', async () => {
+  const sent = [];
+  for (const minutes of [5, 10, 15]) {
+    const { d, pushed } = deps({ threshold: async () => 7 });
+    await handleWaterAlert(d, { room: 'A1-01', minutes });
+    if (pushed.length) sent.push(minutes);
+  }
+  assert.deepEqual(sent, [10]);
+});
+
 test('คำสั่งทดสอบส่งทันทีโดยไม่ดูช่วงเวลา และการ์ดบอกว่าเป็นการทดสอบ', async () => {
   const { d, pushed } = deps({ threshold: async () => 30 });
   await handleWaterAlert(d, { room: 'A1-01', minutes: 0, test: true });
