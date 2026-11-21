@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/api.dart';
 import '../services/auth_service.dart';
+import '../widgets/adaptive_nav.dart';
 import '../widgets/common.dart';
 import 'bindings_screen.dart';
 import 'ticket_detail.dart';
@@ -27,18 +28,16 @@ class _AdminHomeState extends State<AdminHome> {
       const WaterScreen(),
       AccountPage(me: widget.me),
     ];
-    return Scaffold(
-      body: SafeArea(child: pages[_tab]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.build_outlined), label: 'แจ้งซ่อม'),
-          NavigationDestination(icon: Icon(Icons.meeting_room_outlined), label: 'ผูกห้อง'),
-          NavigationDestination(icon: Icon(Icons.water_drop_outlined), label: 'น้ำ'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'บัญชี'),
-        ],
-      ),
+    return AdaptiveNavScaffold(
+      selected: _tab,
+      onSelect: (i) => setState(() => _tab = i),
+      items: const [
+        NavItem(Icons.build_outlined, 'แจ้งซ่อม'),
+        NavItem(Icons.meeting_room_outlined, 'ผูกห้อง'),
+        NavItem(Icons.water_drop_outlined, 'น้ำ'),
+        NavItem(Icons.person_outline, 'บัญชี'),
+      ],
+      body: pages[_tab],
     );
   }
 }
@@ -141,10 +140,10 @@ class _TicketsPageState extends State<_TicketsPage> {
 
   Widget _list(List<Ticket> items, {Widget? footer}) {
     if (items.isEmpty) return const Center(child: Text('ไม่มีรายการ'));
-    return ListView(children: [
-      for (final t in items) TicketTile(ticket: t, onTap: () => _openTicket(t)),
-      if (footer != null) footer,
-    ]);
+    return TicketListView(
+      footer: footer,
+      children: [for (final t in items) TicketTile(ticket: t, onTap: () => _openTicket(t))],
+    );
   }
 
   @override
@@ -216,7 +215,7 @@ class _TicketsPageState extends State<_TicketsPage> {
               ? FutureBuilder<List<Ticket>>(
                   future: _searchResult,
                   builder: (context, snap) {
-                    if (snap.hasError) return Center(child: Text('ค้นหาไม่สำเร็จ: ${snap.error}'));
+                    if (snap.hasError) return LoadError(snap.error!, prefix: 'ค้นหาไม่สำเร็จ');
                     if (!snap.hasData) return const Center(child: CircularProgressIndicator());
                     return _list(snap.data!);
                   },
@@ -225,7 +224,7 @@ class _TicketsPageState extends State<_TicketsPage> {
                   key: ValueKey('$_filter-$_completedLimit'),
                   stream: _stream,
                   builder: (context, snap) {
-                    if (snap.hasError) return Center(child: Text('โหลดข้อมูลไม่สำเร็จ: ${snap.error}'));
+                    if (snap.hasError) return LoadError(snap.error!);
                     if (!snap.hasData) return const Center(child: CircularProgressIndicator());
                     _countsFollow(snap.data!);
                     final items = _apply(snap.data!);

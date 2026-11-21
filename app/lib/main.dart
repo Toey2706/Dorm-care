@@ -15,6 +15,7 @@ import 'screens/otp_screen.dart';
 import 'screens/tech_home.dart';
 import 'services/api.dart';
 import 'services/auth_service.dart';
+import 'services/errors.dart';
 import 'services/push_service.dart';
 
 Future<void> main() async {
@@ -63,6 +64,11 @@ class _AuthGateState extends State<AuthGate> {
   void initState() {
     super.initState();
     _sub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedOut && _sessionUser != null && !_auth.takeManualSignOut()) {
+        PushService.instance.messengerKey.currentState?.showSnackBar(
+          const SnackBar(content: Text(sessionExpiredMessage), duration: Duration(seconds: 6)),
+        );
+      }
       // ต่ออายุโทเคนไม่ต้องตรวจใหม่ ตรวจเฉพาะตอนเข้าหรือออกจากระบบ
       final uid = data.session?.user.id;
       if (uid != _sessionUser) {
@@ -87,6 +93,16 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<Widget> _resolve() async {
+    try {
+      return await _resolveStep();
+    } catch (e) {
+      if (!isSessionError(e)) rethrow;
+      await _auth.expireSession();
+      return const LoginScreen();
+    }
+  }
+
+  Future<Widget> _resolveStep() async {
     if (Supabase.instance.client.auth.currentSession == null) return const LoginScreen();
     var status = await _auth.status();
     if (!status.registered) return const NotRegisteredScreen();
@@ -110,7 +126,7 @@ class _AuthGateState extends State<AuthGate> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('เชื่อมต่อระบบไม่สำเร็จ'),
+                  Text(isNetworkError(snap.error!) ? networkErrorMessage : 'เชื่อมต่อระบบไม่สำเร็จ', textAlign: TextAlign.center),
                   const SizedBox(height: 12),
                   FilledButton(onPressed: _recheck, child: const Text('ลองใหม่')),
                   TextButton(onPressed: _auth.signOut, child: const Text('ออกจากระบบ')),

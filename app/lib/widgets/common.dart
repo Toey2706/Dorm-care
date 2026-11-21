@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/api.dart';
+import '../services/auth_service.dart';
+import '../services/errors.dart';
 import '../theme.dart';
 
 /// ป้ายสถานะ ใช้คำเดียวกับ LINE แสดงสี ไอคอน และข้อความคู่กันเสมอ คนที่แยกสีไม่ออกก็อ่านได้
@@ -157,15 +159,72 @@ class StoragePhotos extends StatelessWidget {
 }
 
 /// เรียกงานที่อาจล้มเหลว แล้วแสดงผลเป็น SnackBar
-Future<bool> runAction(BuildContext context, Future<void> Function() action, {String? success}) async {
+Future<bool> runAction(
+  BuildContext context,
+  Future<void> Function() action, {
+  String? success,
+  Duration timeout = const Duration(seconds: 45),
+}) async {
   final messenger = ScaffoldMessenger.of(context);
-  try {
-    await action();
-    if (success != null) messenger.showSnackBar(SnackBar(content: Text(success)));
-    return true;
-  } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text(e.toString())));
-    return false;
+  while (true) {
+    try {
+      await action().timeout(timeout);
+      if (success != null) messenger.showSnackBar(SnackBar(content: Text(success)));
+      return true;
+    } catch (e) {
+      if (isSessionError(e)) {
+        await AuthService.instance.expireSession();
+        return false;
+      }
+      if (isNetworkError(e) && context.mounted) {
+        if (await retryDialog(context)) continue;
+        return false;
+      }
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      return false;
+    }
+  }
+}
+
+Future<bool> retryDialog(BuildContext context) async {
+  final retry = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      icon: const Icon(Icons.wifi_off_rounded),
+      title: const Text('การเชื่อมต่อขัดข้อง'),
+      content: const Text('กรุณาตรวจสอบสัญญาณอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง'),
+      actions: [dialogButtons(
+        primary: FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('ลองใหม่')),
+        secondary: OutlinedButton(onPressed: () => Navigator.pop(context, false), child: const Text('ปิด')),
+      )],
+    ),
+  );
+  return retry ?? false;
+}
+
+class LoadError extends StatelessWidget {
+  const LoadError(this.error, {super.key, this.prefix = 'โหลดข้อมูลไม่สำเร็จ', this.onRetry});
+  final Object error;
+  final String prefix;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final network = isNetworkError(error);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(network ? Icons.wifi_off_rounded : Icons.error_outline, color: mutedText, size: 36),
+          const SizedBox(height: 8),
+          Text(network ? networkErrorMessage : '$prefix: ${friendlyError(error)}', textAlign: TextAlign.center),
+          if (onRetry != null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: onRetry, child: const Text('ลองใหม่')),
+          ],
+        ]),
+      ),
+    );
   }
 }
 

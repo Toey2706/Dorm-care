@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/api.dart';
+import '../widgets/adaptive_nav.dart';
 import '../widgets/common.dart';
 import 'admin_home.dart' show AccountPage;
 import 'ticket_detail.dart';
@@ -32,25 +33,28 @@ class _TechHomeState extends State<TechHome> {
     return StreamBuilder<List<Ticket>>(
       stream: stream,
       builder: (context, snap) {
-        if (snap.hasError) return Center(child: Text('โหลดข้อมูลไม่สำเร็จ: ${snap.error}'));
+        if (snap.hasError) return LoadError(snap.error!);
         if (!snap.hasData) return const Center(child: CircularProgressIndicator());
         final items = snap.data!;
         if (items.isEmpty) return const Center(child: Text('ไม่มีรายการ'));
-        return ListView(children: [
-          for (final t in items)
-            TicketTile(
-              ticket: t,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: t.id, me: widget.me)),
+        return TicketListView(
+          footer: paged && items.length >= _doneLimit
+              ? Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: OutlinedButton(onPressed: _more, child: const Text('โหลดเพิ่ม')),
+                )
+              : null,
+          children: [
+            for (final t in items)
+              TicketTile(
+                ticket: t,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: t.id, me: widget.me)),
+                ),
               ),
-            ),
-          if (paged && items.length >= _doneLimit)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: OutlinedButton(onPressed: _more, child: const Text('โหลดเพิ่ม')),
-            ),
-        ]);
+          ],
+        );
       },
     );
   }
@@ -73,16 +77,14 @@ class _TechHomeState extends State<TechHome> {
               Expanded(child: TabBarView(children: [_list(_open), _list(_done, paged: true)])),
             ]),
           );
-    return Scaffold(
-      body: SafeArea(child: body),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _account ? 1 : 0,
-        onDestinationSelected: (i) => setState(() => _account = i == 1),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.handyman_outlined), label: 'งานของฉัน'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'บัญชี'),
-        ],
-      ),
+    return AdaptiveNavScaffold(
+      selected: _account ? 1 : 0,
+      onSelect: (i) => setState(() => _account = i == 1),
+      items: const [
+        NavItem(Icons.handyman_outlined, 'งานของฉัน'),
+        NavItem(Icons.person_outline, 'บัญชี'),
+      ],
+      body: body,
     );
   }
 }

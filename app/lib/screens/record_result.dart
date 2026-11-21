@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models.dart';
 import '../services/api.dart';
+import '../services/photo.dart';
+import '../widgets/adaptive_nav.dart';
 import '../widgets/common.dart';
 
 /// ช่างบันทึกผลตรวจ/ผลซ่อม งานจะเป็น "ซ่อมเสร็จแล้ว"
@@ -23,6 +26,8 @@ class _RecordResultScreenState extends State<RecordResultScreen> {
   late final _result = TextEditingController(text: widget.ticket.repairResult ?? '');
   final _photos = <Uint8List>[];
   bool _busy = false;
+  bool _preparing = false;
+  final _uploaded = Map<Uint8List, String>.identity();
 
   @override
   void dispose() {
@@ -32,11 +37,21 @@ class _RecordResultScreenState extends State<RecordResultScreen> {
   }
 
   Future<void> _pick(ImageSource source) async {
-    final file = await ImagePicker().pickImage(source: source, maxWidth: 1600, imageQuality: 80);
+    final file = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: maxPhotoSide.toDouble(),
+      maxHeight: maxPhotoSide.toDouble(),
+      imageQuality: photoQuality,
+    );
     if (file == null) return;
-    final bytes = await file.readAsBytes();
-    if (!mounted) return; // ผู้ใช้ออกจากหน้าระหว่างเลือกรูป
-    setState(() => _photos.add(bytes));
+    setState(() => _preparing = true);
+    try {
+      final bytes = await compute(compressPhoto, await file.readAsBytes());
+      if (!mounted) return; // ผู้ใช้ออกจากหน้าระหว่างเลือกรูป
+      setState(() => _photos.add(bytes));
+    } finally {
+      if (mounted) setState(() => _preparing = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -50,7 +65,7 @@ class _RecordResultScreenState extends State<RecordResultScreen> {
     final ok = await runAction(context, () async {
       final paths = <String>[];
       for (final bytes in _photos) {
-        paths.add(await Api.instance.uploadRepairPhoto(widget.ticket.id, bytes));
+        paths.add(_uploaded[bytes] ??= await Api.instance.uploadRepairPhoto(widget.ticket.id, bytes));
       }
       await Api.instance.submitResult(widget.ticket.id, _inspection.text.trim(), _result.text.trim(), paths);
     }, success: 'บันทึกผลแล้ว งานซ่อมเสร็จ');
@@ -64,7 +79,7 @@ class _RecordResultScreenState extends State<RecordResultScreen> {
     final t = widget.ticket;
     return Scaffold(
       appBar: AppBar(title: const Text('บันทึกผลการซ่อม')),
-      body: ListView(
+      body: readable(ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text('${t.ticketNo} · ห้อง ${t.roomNo}', style: Theme.of(context).textTheme.titleSmall),
@@ -101,18 +116,27 @@ class _RecordResultScreenState extends State<RecordResultScreen> {
                 ),
               ]),
           ]),
-          if (_photos.length < maxPhotos)
+          if (_preparing)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Row(children: [
+                SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: 8),
+                Text('กำลังย่อรูป...'),
+              ]),
+            )
+          else if (_photos.length < maxPhotos)
             Row(children: [
               TextButton.icon(onPressed: _busy ? null : () => _pick(ImageSource.camera), icon: const Icon(Icons.photo_camera_outlined), label: const Text('ถ่ายรูป')),
               TextButton.icon(onPressed: _busy ? null : () => _pick(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined), label: const Text('เลือกรูป')),
             ]),
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: _busy ? null : _submit,
+            onPressed: _busy || _preparing ? null : _submit,
             child: _busy ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('บันทึกผลและปิดงาน'),
           ),
         ],
-      ),
+      )),
     );
   }
 }

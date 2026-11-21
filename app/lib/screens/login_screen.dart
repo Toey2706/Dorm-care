@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
 import 'forgot_password_screen.dart';
@@ -37,6 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await AuthService.instance.signIn(_email.text, _password.text);
+      TextInput.finishAutofillContext();
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -70,24 +72,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 4),
                   Text('สำหรับผู้ดูแลหอพักและช่างซ่อมบำรุง', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 32),
-                  TextField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(labelText: 'อีเมล'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _password,
-                    obscureText: !_show,
-                    autofillHints: const [AutofillHints.password],
-                    onSubmitted: (_) => _submit(),
-                    decoration: InputDecoration(
-                      labelText: 'รหัสผ่าน',
-                      suffixIcon: IconButton(
-                        icon: Icon(_show ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _show = !_show),
-                      ),
+                  AutofillGroup(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autocorrect: false,
+                          autofillHints: const [AutofillHints.email, AutofillHints.username],
+                          decoration: const InputDecoration(labelText: 'อีเมล'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _password,
+                          obscureText: !_show,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          onSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            labelText: 'รหัสผ่าน',
+                            suffixIcon: IconButton(
+                              icon: Icon(_show ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () => setState(() => _show = !_show),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   if (_error != null) ...[

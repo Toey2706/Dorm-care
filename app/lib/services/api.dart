@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart' hide Binding;
 
 import '../models.dart';
+import 'errors.dart';
 
 /// แอปอ่านตารางได้ตาม RLS เท่านั้น การเปลี่ยนสถานะทุกอย่างเรียกฟังก์ชันในฐานข้อมูล (rpc)
 /// ซึ่งตรวจบทบาทและสถานะในทรานแซกชันเดียวกับที่เขียน
@@ -192,6 +193,7 @@ class Api {
     try {
       return await _sb.rpc(fn, params: params);
     } on PostgrestException catch (e) {
+      if (isSessionError(e)) rethrow;
       // ฟังก์ชันในฐานข้อมูลส่งข้อความภาษาไทยมาใน message อยู่แล้ว
       throw ApiException(e.code == 'P0001' ? e.message : 'ทำรายการไม่สำเร็จ กรุณาลองใหม่');
     }

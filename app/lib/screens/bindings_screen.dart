@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models.dart';
 import '../services/api.dart';
+import '../services/errors.dart';
 import '../widgets/common.dart';
 
 /// ผู้ดูแลออกรหัสผูกห้อง 6 หลักให้ผู้พัก และยกเลิกการผูกเมื่อผู้พักย้ายออก
@@ -21,7 +22,7 @@ class BindingsScreen extends StatelessWidget {
       body: StreamBuilder<List<Binding>>(
         stream: Api.instance.bindings('ACTIVE'),
         builder: (context, snap) {
-          if (snap.hasError) return Center(child: Text('โหลดข้อมูลไม่สำเร็จ: ${snap.error}'));
+          if (snap.hasError) return LoadError(snap.error!);
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final items = snap.data!..sort((a, b) => a.roomNo.compareTo(b.roomNo));
           return ListView(
@@ -97,7 +98,7 @@ class BindingsScreen extends StatelessWidget {
         ),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
     }
   }
 }

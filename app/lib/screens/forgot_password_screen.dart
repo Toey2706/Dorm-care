@@ -21,6 +21,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _codeSent = false;
   bool _busy = false;
   String? _error;
+  String? _emailError;
+
+  static final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 
   @override
   void dispose() {
@@ -44,11 +47,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
-  void _request() => _run(() async {
-        if (!_email.text.contains('@')) throw ApiException('กรุณากรอกอีเมล');
-        await AuthService.instance.requestPasswordReset(_email.text);
+  void _request() {
+    if (!_emailPattern.hasMatch(_email.text.trim())) {
+      setState(() => _emailError = 'กรุณากรอกอีเมลให้ถูกต้อง');
+      return;
+    }
+    _run(() async {
+        await AuthService.instance.requestPasswordReset(_email.text.trim());
         setState(() => _codeSent = true);
       });
+  }
 
   void _confirmReset() => _run(() async {
         if (!RegExp(r'^\d{6}$').hasMatch(_code.text.trim())) throw ApiException('กรุณากรอกรหัส 6 หลักจากอีเมล');
@@ -79,7 +87,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     controller: _email,
                     enabled: !_codeSent,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'อีเมล'),
+                    autofillHints: const [AutofillHints.email],
+                    autocorrect: false,
+                    onChanged: (_) {
+                      if (_emailError != null) setState(() => _emailError = null);
+                    },
+                    onSubmitted: (_) {
+                      if (!_codeSent && !_busy) _request();
+                    },
+                    decoration: InputDecoration(labelText: 'อีเมล', errorText: _emailError),
                   ),
                   const SizedBox(height: 12),
                   if (!_codeSent)

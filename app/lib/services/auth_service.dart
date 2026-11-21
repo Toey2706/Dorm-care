@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'api.dart';
+import 'errors.dart';
 import 'push_service.dart';
 
 /// สถานะหลังล็อกอินด้วยรหัสผ่าน ใช้เลือกว่าจะพาไปหน้าไหน
@@ -37,6 +38,8 @@ class AuthService {
   Future<void> signIn(String email, String password) async {
     try {
       await _sb.auth.signInWithPassword(email: email.trim().toLowerCase(), password: password);
+    } on AuthRetryableFetchException {
+      throw ApiException(networkErrorMessage);
     } on AuthException catch (e) {
       if (e.statusCode == '429') throw ApiException('ลองเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่');
       throw ApiException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
@@ -110,7 +113,24 @@ class AuthService {
     }
   }
 
+  bool _manualSignOut = false;
+
+  bool takeManualSignOut() {
+    final v = _manualSignOut;
+    _manualSignOut = false;
+    return v;
+  }
+
+  Future<void> expireSession() async {
+    if (_sb.auth.currentSession == null) return;
+    try {
+      await _sb.auth.signOut(scope: SignOutScope.local);
+    } catch (_) {
+    }
+  }
+
   Future<void> signOut() async {
+    _manualSignOut = true;
     await PushService.instance.unregister();
     try {
       await _sb.rpc('end_session');

@@ -98,10 +98,9 @@ const categoryIcons = <String, IconData>{
   'OTHER': Icons.handyman_outlined,
 };
 
-/// จอคอมพิวเตอร์: ให้เนื้อหาอยู่กลางจอกว้างไม่เกิน 720 การ์ดจะได้ไม่ยืดเต็มจอ
 Widget constrainWidth(BuildContext context, Widget? child) {
   return ColoredBox(
     color: const Color(0xFFE9EDF3),
-    child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 720), child: child)),
+    child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1440), child: child)),
   );
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/api.dart';
 import '../theme.dart';
+import '../widgets/adaptive_nav.dart';
 import '../widgets/common.dart';
 import 'record_result.dart';
 
@@ -21,11 +22,11 @@ class TicketDetailScreen extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(title: Text(t?.ticketNo ?? 'ใบแจ้งซ่อม')),
           body: snap.hasError
-              ? Center(child: Text('โหลดข้อมูลไม่สำเร็จ: ${snap.error}'))
+              ? LoadError(snap.error!)
               : t == null
                   ? const Center(child: CircularProgressIndicator())
-                  : _Body(ticket: t),
-          bottomNavigationBar: t == null ? null : _Actions(ticket: t, me: me),
+                  : readable(_Body(ticket: t)),
+          bottomNavigationBar: t == null ? null : readable(_Actions(ticket: t, me: me)),
         );
       },
     );

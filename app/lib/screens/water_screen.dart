@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/api.dart';
+import '../services/errors.dart';
 import '../widgets/common.dart';
 
 class WaterScreen extends StatefulWidget {
@@ -59,7 +60,7 @@ class _WaterScreenState extends State<WaterScreen> {
           Text('อุปกรณ์วัดน้ำ', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           if (_error != null)
-            Card(child: ListTile(leading: const Icon(Icons.error_outline), title: Text('$_error'), trailing: TextButton(onPressed: _load, child: const Text('ลองใหม่'))))
+            Card(child: ListTile(leading: const Icon(Icons.error_outline), title: Text(friendlyError(_error!)), trailing: TextButton(onPressed: _load, child: const Text('ลองใหม่'))))
           else if (_devices == null)
             const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
           else if (_devices!.isEmpty)
@@ -72,7 +73,7 @@ class _WaterScreenState extends State<WaterScreen> {
           StreamBuilder<List<WaterAlert>>(
             stream: _alerts,
             builder: (context, snap) {
-              if (snap.hasError) return Card(child: ListTile(title: Text('โหลดแจ้งเตือนไม่สำเร็จ: ${snap.error}')));
+              if (snap.hasError) return Card(child: ListTile(title: Text('โหลดแจ้งเตือนไม่สำเร็จ: ${friendlyError(snap.error!)}')));
               if (!snap.hasData) return const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()));
               final items = snap.data!;
               if (items.isEmpty) return const Card(child: ListTile(title: Text('ยังไม่มีแจ้งเตือน')));
