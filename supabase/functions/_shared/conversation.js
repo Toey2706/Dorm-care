@@ -186,6 +186,13 @@ function handleWater(current, text, event) {
       return { session: current, effects: [reply(M.askWaterTime('end', draft.start))] };
 
     default: {
+      if (event.kind === 'postback' && event.data === 'water:dur' && picked !== null) {
+        if (picked < 1 || picked > WATER_MINUTES_MAX) {
+          return { session: current, effects: [reply(M.text('เลือกได้ตั้งแต่ 00:01 ถึง 03:00 (1 นาที ถึง 3 ชั่วโมง)'), M.askWaterMinutes(draft.allDay ? null : draft, WATER_MINUTE_CHOICES))] };
+        }
+        const rule = draft.allDay ? { allDay: true, minutes: picked } : { start: draft.start, end: draft.end, minutes: picked };
+        return { session: current, effects: [{ type: 'addWaterRule', rule }] };
+      }
       const minutes = minuteChoice(text);
       if (minutes === null) {
         return { session: current, effects: [reply(M.askWaterMinutes(draft.allDay ? null : draft, WATER_MINUTE_CHOICES))] };

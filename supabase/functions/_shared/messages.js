@@ -379,7 +379,7 @@ export function askWaterMode() {
   });
 }
 
-const timePicker = (label, data, initial) => ({ type: 'datetimepicker', label, data, mode: 'time', initial });
+const timePicker = (label, data, initial, extra = {}) => ({ type: 'datetimepicker', label, data, mode: 'time', initial, ...extra });
 
 export function askWaterTime(which, startMin = null) {
   const isStart = which === 'start';
@@ -404,7 +404,8 @@ export function askWaterTime(which, startMin = null) {
 export function askWaterMinutes(window, choices) {
   const scope = window ? `ช่วง ${hhmm(window.start)}-${hhmm(window.end)}` : 'ทั้งวัน (เวลาอื่นทั้งหมด)';
   const labels = choices.map(durationText);
-  const rows = [];
+  const pick = timePicker('เลือกระยะเวลา', 'water:dur', '00:10', { min: '00:01', max: '03:00' });
+  const rows = [{ type: 'button', style: 'primary', height: 'sm', color: BRAND, action: pick }];
   for (let i = 0; i < labels.length; i += 3) {
     rows.push({ type: 'box', layout: 'horizontal', spacing: 'sm', contents: labels.slice(i, i + 3).map((l) => button(l, 'secondary')) });
   }
@@ -413,9 +414,13 @@ export function askWaterMinutes(window, choices) {
     header: header('ตั้งเวลาแจ้งเตือน', 'ไหลเกินกี่นาทีจึงเตือน'),
     body: [
       { type: 'text', text: scope, size: 'md', weight: 'bold', color: INK, wrap: true },
-      { type: 'text', text: 'เลือกว่าน้ำไหลต่อเนื่องนานเท่าไรจึงแจ้งเตือน หรือพิมพ์เองได้ เช่น 7, 1.5 หรือ 90 วินาที (30 วินาที ถึง 180 นาที ทีละ 30 วินาที)', size: 'sm', color: MUTED, wrap: true },
+      { type: 'text', text: 'กด "เลือกระยะเวลา" แล้วหมุนเลือก ชั่วโมง:นาที เช่น 00:30 คือ 30 นาที, 01:15 คือ 1 ชั่วโมง 15 นาที', size: 'sm', color: INK, wrap: true },
+      { type: 'text', text: 'หรือกดปุ่มลัด หรือพิมพ์เอง เช่น 7, 1.5, 90 วินาที (30 วินาที ถึง 3 ชั่วโมง)', size: 'sm', color: MUTED, wrap: true },
     ],
     footer: rows,
   });
-  return { ...flex(`${scope} น้ำไหลเกินกี่นาทีจึงเตือน`, b), quickReply: quickReply([...labels, 'ยกเลิก']) };
+  return {
+    ...flex(`${scope} น้ำไหลเกินกี่นาทีจึงเตือน`, b),
+    quickReply: { items: [{ type: 'action', action: pick }, ...quickReply([...labels, 'ยกเลิก']).items] },
+  };
 }

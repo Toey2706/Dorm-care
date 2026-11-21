@@ -353,3 +353,23 @@ test('ตั้งแจ้งเตือนน้ำ 30 วินาทีจ�
   assert.equal(t.db.s.defaultMinutes, 0.5);
   assert.match(t.last(), /ทั้งวันเตือนเมื่อน้ำไหลต่อเนื่องเกิน 30 วินาที/);
 });
+
+test('เลือกระยะเวลาแจ้งเตือนจากปุ่มหมุนเลือกเวลา ชั่วโมง:นาที', async () => {
+  const t = setup();
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  let n = 300;
+  const pick = (data, time) => t.hook.handleAll(t.line.client, [{ type: 'postback', webhookEventId: `p${++n}`, replyToken: `t${n}`, timestamp: 1000, source: { type: 'user', userId: 'U1' }, postback: { data, params: { time } } }]);
+  await t.say('ตั้งเวลาแจ้งเตือน');
+  await t.say('ทั้งวัน');
+  await pick('water:dur', '01:15');
+  assert.equal(t.db.s.defaultMinutes, 75);
+  assert.match(t.last(), /ทั้งวันเตือนเมื่อน้ำไหลต่อเนื่องเกิน 75 นาที/);
+  await t.say('ตั้งเวลาแจ้งเตือน');
+  await t.say('เฉพาะช่วงเวลา');
+  await pick('water:start', '09:00');
+  await pick('water:end', '10:00');
+  await pick('water:dur', '04:00');
+  assert.match(t.line.replies.slice(-2).join('\n'), /00:01 ถึง 03:00/);
+  await pick('water:dur', '00:20');
+  assert.deepEqual(t.db.s.rules, [{ start_min: 540, end_min: 600, minutes: 20 }]);
+});
