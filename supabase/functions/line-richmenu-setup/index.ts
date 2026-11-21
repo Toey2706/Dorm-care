@@ -14,10 +14,14 @@ Deno.serve(
     if (isAdmin !== true) throw Object.assign(new Error('เฉพาะผู้ดูแลที่ยืนยันตัวตนแล้ว'), { status: 403, code: 'permission-denied' });
 
     const db = serviceClient();
-    const { data, error } = await db.from('line_bindings').select('line_user_id, status');
+    const { data, error } = await db.from('line_bindings').select('line_user_id, status, room_no');
     if (error) throw error;
     const active = [...new Set(data.filter((b) => b.status === 'ACTIVE').map((b) => b.line_user_id))];
     const revoked = [...new Set(data.filter((b) => b.status !== 'ACTIVE').map((b) => b.line_user_id))];
+    const { data: devices, error: devErr } = await db.from('water_devices').select('room_no').eq('active', true);
+    if (devErr) throw devErr;
+    const waterRooms = new Set((devices ?? []).map((d) => d.room_no));
+    const water = [...new Set(data.filter((b) => b.status === 'ACTIVE' && waterRooms.has(b.room_no)).map((b) => b.line_user_id))];
 
     return setupRichMenus({
       api: richMenuApi(env('LINE_CHANNEL_ACCESS_TOKEN')),
@@ -28,6 +32,7 @@ Deno.serve(
       },
       activeUserIds: active,
       revokedUserIds: revoked,
+      waterUserIds: water,
     });
   })
 );

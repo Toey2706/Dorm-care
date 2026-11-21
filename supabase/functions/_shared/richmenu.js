@@ -5,7 +5,7 @@
 const API = 'https://api.line.me/v2/bot';
 const DATA_API = 'https://api-data.line.me/v2/bot';
 
-export const ALIAS = { UNBOUND: 'dorm-unbound', BOUND: 'dorm-bound' };
+export const ALIAS = { UNBOUND: 'dorm-unbound', BOUND: 'dorm-bound', BOUND_WATER: 'dorm-bound-water' };
 
 const W = 2500;
 const H = 843;
@@ -23,7 +23,11 @@ export const MENUS = {
   },
   [ALIAS.BOUND]: {
     image: 'rm-bound.png',
-    body: { size: { width: W, height: H }, selected: true, name: 'ผูกห้องแล้ว', chatBarText: 'เมนู', areas: areas(['แจ้งซ่อม', 'ติดตามงาน', 'ตั้งแจ้งเตือนน้ำ', 'ติดต่อผู้ดูแล']) },
+    body: { size: { width: W, height: H }, selected: true, name: 'ผูกห้องแล้ว', chatBarText: 'เมนู', areas: areas(['แจ้งซ่อม', 'ติดตามงาน', 'ติดต่อผู้ดูแล']) },
+  },
+  [ALIAS.BOUND_WATER]: {
+    image: 'rm-bound-water.png',
+    body: { size: { width: W, height: H }, selected: true, name: 'ผูกห้องแล้ว มีอุปกรณ์วัดน้ำ', chatBarText: 'เมนู', areas: areas(['แจ้งซ่อม', 'ติดตามงาน', 'ตั้งแจ้งเตือนน้ำ', 'ติดต่อผู้ดูแล']) },
   },
 };
 
@@ -71,7 +75,7 @@ const chunks = (list, size) => Array.from({ length: Math.ceil(list.length / size
  * สร้างเมนูทั้งสองชุดใหม่ ชี้ alias มาที่ชุดใหม่ แล้วลบชุดเก่า รันซ้ำได้
  * activeUserIds = ผู้ที่ผูกห้องอยู่ ได้ชุด bound ส่วน revokedUserIds กลับไปใช้ค่าเริ่มต้น
  */
-export async function setupRichMenus({ api, loadImage, activeUserIds, revokedUserIds }) {
+export async function setupRichMenus({ api, loadImage, activeUserIds, revokedUserIds, waterUserIds = [] }) {
   const ids = {};
   for (const [alias, menu] of Object.entries(MENUS)) {
     const id = await api.create(menu.body);
@@ -85,8 +89,11 @@ export async function setupRichMenus({ api, loadImage, activeUserIds, revokedUse
   }
   await api.setDefault(ids[ALIAS.UNBOUND]);
   // LINE รับครั้งละไม่เกิน 500 คน
-  for (const group of chunks(activeUserIds, 500)) await api.bulkLink(ids[ALIAS.BOUND], group);
+  const water = activeUserIds.filter((u) => waterUserIds.includes(u));
+  const plain = activeUserIds.filter((u) => !waterUserIds.includes(u));
+  for (const group of chunks(plain, 500)) await api.bulkLink(ids[ALIAS.BOUND], group);
+  for (const group of chunks(water, 500)) await api.bulkLink(ids[ALIAS.BOUND_WATER], group);
   const revoked = revokedUserIds.filter((u) => !activeUserIds.includes(u));
   for (const group of chunks(revoked, 500)) await api.bulkUnlink(group);
-  return { menus: ids, linked: activeUserIds.length, unlinked: revoked.length };
+  return { menus: ids, linked: activeUserIds.length, water: water.length, unlinked: revoked.length };
 }

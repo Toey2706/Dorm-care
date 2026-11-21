@@ -19,7 +19,8 @@ const webhook = createWebhook({
   logger,
   richMenu: {
     async toBound(userId: string) {
-      const id = await menus.aliasTarget(ALIAS.BOUND);
+      const info = await rpcOf(db)('line_water_rules', { p_user_id: userId }).catch(() => null);
+      const id = (info?.has_device && (await menus.aliasTarget(ALIAS.BOUND_WATER))) || (await menus.aliasTarget(ALIAS.BOUND));
       if (id) await menus.link(userId, id); // ยังไม่ได้รัน line-richmenu-setup ก็ข้ามไป
     },
     toDefault: (userId: string) => menus.unlink(userId),

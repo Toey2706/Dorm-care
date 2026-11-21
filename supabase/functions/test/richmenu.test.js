@@ -46,9 +46,18 @@ test('รันครั้งแรก สร้าง alias ตั้งเม
 });
 
 test('รันซ้ำ ย้าย alias ไปชุดใหม่และลบชุดเก่า', async () => {
-  const f = fakeApi({ [ALIAS.UNBOUND]: 'old1', [ALIAS.BOUND]: 'old2' });
+  const f = fakeApi({ [ALIAS.UNBOUND]: 'old1', [ALIAS.BOUND]: 'old2', [ALIAS.BOUND_WATER]: 'old3' });
   await setupRichMenus({ api: f.api, loadImage, activeUserIds: [], revokedUserIds: [] });
   assert.ok(f.calls.some((c) => c[0] === 'remove' && c[1] === 'old1'));
   assert.ok(f.calls.some((c) => c[0] === 'remove' && c[1] === 'old2'));
   assert.equal(f.calls.filter((c) => c[0] === 'createAlias').length, 0);
+});
+
+test('ห้องที่ติดอุปกรณ์วัดน้ำได้เมนูที่มีปุ่มแจ้งเตือนน้ำ ห้องอื่นได้เมนูปกติ', async () => {
+  const f = fakeApi({});
+  const r = await setupRichMenus({ api: f.api, loadImage, activeUserIds: ['U1', 'U2', 'U3'], revokedUserIds: [], waterUserIds: ['U2', 'X'] });
+  assert.deepEqual(f.calls.filter((c) => c[0] === 'link'), [['link', r.menus[ALIAS.BOUND], 2], ['link', r.menus[ALIAS.BOUND_WATER], 1]]);
+  assert.equal(r.water, 1);
+  assert.ok(!MENUS[ALIAS.BOUND].body.areas.some((a) => a.action.text === 'ตั้งแจ้งเตือนน้ำ'));
+  assert.ok(MENUS[ALIAS.BOUND_WATER].body.areas.some((a) => a.action.text === 'ตั้งแจ้งเตือนน้ำ'));
 });
