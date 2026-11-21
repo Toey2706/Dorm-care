@@ -44,7 +44,7 @@ function toConversationEvent(event) {
  */
 const BOUND_ONLY = new Set(['แจ้งซ่อม', 'ติดตามงาน']);
 
-export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketCreated = null, waterUsage = null }) {
+export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketCreated = null, onResidentIssue = null, waterUsage = null }) {
   const setIdle = (userId) => rpc('line_set_idle', { p_user_id: userId });
 
   async function syncMenu(userId, bound) {
@@ -100,7 +100,8 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
       if (effect.type === 'reply') replies.push(...effect.messages);
       if (effect.type === 'showStatus') replies.push(await statusMessage(binding.roomNo));
       if (effect.type === 'showContact') replies.push(M.contact(await rpc('line_contact_text')));
-      if (effect.type === 'redeemCode') replies.push(await redeemCode(client, userId, effect.code));
+      if (effect.type === 'redeemCode') replies.push(await redeemCode(client, userId, effect.code, effect.privacyVersion));
+      if (effect.type === 'rateTicket') replies.push(await rateTicket(userId, effect));
       if (effect.type === 'createTicket') replies.push(await submitReport(client, userId, effect.draft));
       if (effect.type === 'showWaterRules') replies.push(await waterRulesMessage(userId));
       if (effect.type === 'showWaterUsage') replies.push(...(await waterMessages(userId)));
@@ -171,12 +172,28 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
   }
 
   /** ถูกต้อง: ผูกห้องทันที, ผิด: ยังอยู่ขั้นรอรหัสให้พิมพ์ใหม่ได้ */
-  async function redeemCode(client, userId, code) {
+  async function rateTicket(userId, { ticketId, rating, issue }) {
+    const r = await rpc('line_rate_ticket', { p_user_id: userId, p_ticket_id: ticketId, p_rating: rating, p_issue: issue });
+    if (r.result === 'NOT_COMPLETED') return M.text(`งาน ${r.ticket_no} ยังไม่เสร็จ ให้คะแนนได้หลังซ่อมเสร็จ`);
+    if (r.result !== 'OK') return M.text('ไม่พบงานนี้ในบัญชีของคุณ');
+    if (!issue) return M.ratingThanks(r.ticket_no, rating);
+    if (r.first_issue && onResidentIssue) {
+      try {
+        onResidentIssue({ id: r.id, ticket_no: r.ticket_no, room_no: r.room_no, category: r.category });
+      } catch (err) {
+        logger.warn('onResidentIssue failed', { error: err.message });
+      }
+    }
+    return M.issueReceived(r.ticket_no);
+  }
+
+  async function redeemCode(client, userId, code, privacyVersion = null) {
     const profile = await client.getProfile(userId).catch(() => null);
     const r = await rpc('line_redeem_code', {
       p_user_id: userId,
       p_code: code,
       p_display_name: (profile && profile.displayName) || '',
+      p_privacy_version: privacyVersion,
     });
     if (r.result === 'BOUND') {
       await setIdle(userId);

@@ -20,7 +20,7 @@ function fakeDb() {
     },
     line_is_processed: ({ p_event_id }) => s.processed.has(p_event_id),
     line_mark_processed: ({ p_event_id }) => s.processed.add(p_event_id),
-    line_redeem_code: ({ p_user_id, p_code, p_display_name }) => {
+    line_redeem_code: ({ p_user_id, p_code, p_display_name, p_privacy_version }) => {
       if ((s.failed[p_user_id] || 0) >= 5) return { result: 'LIMIT' };
       const c = s.codes[p_code];
       if (!c || c.used) {
@@ -28,7 +28,7 @@ function fakeDb() {
         return { result: 'INVALID' };
       }
       c.used = true;
-      s.bindings[p_user_id] = { status: 'ACTIVE', room_no: c.room, display_name: p_display_name };
+      s.bindings[p_user_id] = { status: 'ACTIVE', room_no: c.room, display_name: p_display_name, privacy: p_privacy_version };
       return { result: 'BOUND', room_no: c.room };
     },
     line_ticket_no: ({ p_ticket_id }) => (s.tickets[p_ticket_id] || {}).ticket_no || null,
@@ -63,6 +63,15 @@ function fakeDb() {
     line_set_water_default: ({ p_minutes }) => { s.defaultMinutes = p_minutes; return { result: 'OK' }; },
     line_clear_water_rules: () => { const n = (s.rules || []).length; s.rules = []; return n; },
     line_contact_text: () => null,
+    line_rate_ticket: ({ p_user_id, p_ticket_id, p_rating, p_issue }) => {
+      const t = s.tickets[p_ticket_id];
+      if (!t || t.user !== p_user_id) return { result: 'NOT_FOUND' };
+      if (t.status !== 'COMPLETED') return { result: 'NOT_COMPLETED', ticket_no: t.ticket_no };
+      const first = p_issue && !t.issue;
+      if (p_issue) t.issue = true;
+      else t.rating = p_rating;
+      return { result: 'OK', id: p_ticket_id, ticket_no: t.ticket_no, room_no: '305', category: 'PLUMBING', first_issue: first };
+    },
   };
   const rpc = async (fn, args = {}) => {
     if (fail.crashOn === fn) throw new Error('unexpected');
@@ -95,8 +104,10 @@ function setup(opts = {}) {
   const errors = [];
   const menu = [];
   const created = [];
+  const issues = [];
   const hook = createWebhook({
     onTicketCreated: (t) => created.push(t),
+    onResidentIssue: (t) => issues.push(t),
     waterUsage: opts.waterUsage,
     rpc: db.rpc,
     storage: { save: async (path) => saved.push(path) },
@@ -115,7 +126,7 @@ function setup(opts = {}) {
   const say = (text, at) => send({ type: 'text', text }, at);
   const last = () => line.replies[line.replies.length - 1];
   const follow = () => hook.handleAll(line.client, [{ type: 'follow', webhookEventId: `f${++n}`, replyToken: `t${n}`, timestamp: 1000, source: { type: 'user', userId: 'U1' } }]);
-  return { db, line, saved, errors, hook, send, say, last, menu, follow, created };
+  return { db, line, saved, errors, hook, send, say, last, menu, follow, created, issues };
 }
 
 async function reportUntilConfirm(t, photos = []) {
@@ -129,6 +140,7 @@ async function reportUntilConfirm(t, photos = []) {
 test('ผูกห้องด้วยรหัส แล้วแจ้งซ่อมได้ใบงาน 1 ใบ พร้อมรูป', async () => {
   const t = setup();
   await t.say('ผูกเลขห้อง');
+  await t.say('รับทราบนโยบาย');
   await t.say('123 456');
   assert.match(t.last(), /ห้อง 305 เรียบร้อย/);
   await reportUntilConfirm(t, ['m1', 'm2']);
@@ -207,6 +219,7 @@ test('บันทึกสถานะชนกับเหตุการณ�
 test('รหัสผิดพิมพ์ใหม่ได้ทันที และผิดเกิน 5 ครั้งถูกล็อก', async () => {
   const t = setup();
   await t.say('ผูกเลขห้อง');
+  await t.say('รับทราบนโยบาย');
   await t.say('999999');
   assert.match(t.last(), /ไม่ถูกต้อง/);
   assert.equal(t.db.s.sessions.U1.state, 'BIND_WAIT_CODE');
@@ -222,6 +235,7 @@ test('เมนูด้านล่าง: แอดใหม่ได้เม
   await t.follow();
   assert.deepEqual(t.menu, [['default', 'U1']]);
   await t.say('ผูกเลขห้อง');
+  await t.say('รับทราบนโยบาย');
   await t.say('123456');
   assert.deepEqual(t.menu.at(-1), ['bound', 'U1']);
 });
@@ -237,6 +251,7 @@ test('เปลี่ยนเมนูไม่สำเร็จ ผู้ใ�
   const t = setup();
   t.menu.fail = true;
   await t.say('ผูกเลขห้อง');
+  await t.say('รับทราบนโยบาย');
   const r = await t.say('123456');
   assert.equal(r.ok, true);
   assert.match(t.last(), /ห้อง 305 เรียบร้อย/);
@@ -395,4 +410,43 @@ test('ลบช่วงเวลาแจ้งเตือนน้ำที�
   assert.match(t.line.replies.slice(-2).join('\n'), /ลบช่วงเวลานี้แล้ว[\s\S]*21:00-22:00/);
   await del(1);
   assert.match(t.line.replies.slice(-2).join('\n'), /ถูกลบไปแล้ว/);
+});
+
+test('ผูกห้องหลังกดรับทราบนโยบาย บันทึกฉบับนโยบายไว้กับการผูกห้อง', async () => {
+  const t = setup();
+  await t.say('ผูกเลขห้อง');
+  assert.equal(t.db.s.sessions.U1.state, 'BIND_PRIVACY');
+  await t.say('รับทราบนโยบาย');
+  assert.equal(t.db.s.sessions.U1.state, 'BIND_WAIT_CODE');
+  await t.say('123456');
+  assert.equal(t.db.s.bindings.U1.privacy, '2026-11-22');
+});
+
+test('ยังไม่กดรับทราบนโยบาย พิมพ์รหัสก็ยังไม่ผูกห้อง', async () => {
+  const t = setup();
+  await t.say('แจ้งซ่อม');
+  await t.say('123456');
+  assert.equal(t.db.s.bindings.U1, undefined);
+  assert.equal(t.db.s.sessions.U1.state, 'BIND_PRIVACY');
+});
+
+test('ให้คะแนนและแจ้งว่ายังมีปัญหา แจ้งผู้ดูแลครั้งเดียว', async () => {
+  const t = setup();
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  t.db.s.tickets.r_done = { ticket_no: 'R2569-0009', user: 'U1', status: 'COMPLETED' };
+  t.db.s.tickets.r_open = { ticket_no: 'R2569-0010', user: 'U1', status: 'PENDING' };
+  let k = 0;
+  const tap = (data) => t.hook.handleAll(t.line.client, [{ type: 'postback', webhookEventId: `r${++k}`, replyToken: `tr${k}`, timestamp: 1000, source: { type: 'user', userId: 'U1' }, postback: { data } }]);
+  await tap('rate:r_done:5');
+  assert.match(t.last(), /5 ดาว/);
+  assert.equal(t.db.s.tickets.r_done.rating, 5);
+  await tap('rate:r_open:5');
+  assert.match(t.last(), /ยังไม่เสร็จ/);
+  await tap('rate:r_none:5');
+  assert.match(t.last(), /ไม่พบงาน/);
+  await tap('rate:r_done:issue');
+  await tap('rate:r_done:issue');
+  assert.match(t.last(), /ยังมีปัญหา/);
+  assert.equal(t.issues.length, 1);
+  assert.equal(t.issues[0].ticket_no, 'R2569-0009');
 });

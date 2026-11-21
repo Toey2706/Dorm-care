@@ -54,6 +54,9 @@ class Ticket {
     required this.createdAt,
     required this.completedAt,
     required this.notifiedAt,
+    this.residentRating,
+    this.residentIssue = false,
+    this.residentFeedbackAt,
   });
 
   final String id;
@@ -72,6 +75,9 @@ class Ticket {
   final DateTime? createdAt;
   final DateTime? completedAt;
   final DateTime? notifiedAt;
+  final int? residentRating;
+  final bool residentIssue;
+  final DateTime? residentFeedbackAt;
 
   String get categoryLabel => categoryLabels[category] ?? category;
 
@@ -100,6 +106,9 @@ class Ticket {
         createdAt: parseTime(d['created_at']),
         completedAt: parseTime(d['completed_at']),
         notifiedAt: parseTime(d['notified_at']),
+        residentRating: (d['resident_rating'] as num?)?.toInt(),
+        residentIssue: d['resident_issue'] == true,
+        residentFeedbackAt: parseTime(d['resident_feedback_at']),
       );
 }
 
@@ -118,6 +127,8 @@ class HistoryEntry {
     'START': 'เริ่มซ่อม',
     'COMPLETE': 'ช่างบันทึกผล ซ่อมเสร็จแล้ว',
     'NOTIFY_LINE': 'แจ้งผลผู้พักทาง LINE',
+    'RESIDENT_RATE': 'ผู้พักให้คะแนน',
+    'RESIDENT_ISSUE': 'ผู้พักแจ้งว่ายังมีปัญหา',
   };
 
   String get label => _labels[action] ?? action;

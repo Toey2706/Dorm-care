@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handle, STATE, parseWaterRule, parseDuration } from '../_shared/conversation.js';
+import { handle, STATE, parseWaterRule, parseDuration, PRIVACY_VERSION } from '../_shared/conversation.js';
 
 const active = { status: 'ACTIVE', roomNo: '305' };
 const say = (text) => ({ kind: 'text', text });
@@ -25,14 +25,18 @@ test('แจ้งซ่อมครบขั้นตอน พร้อมร�
 
 test('ยังไม่ผูกห้อง: แจ้งซ่อมจะพาไปใส่รหัสผูกห้องก่อน', () => {
   let r = handle(null, null, say('แจ้งซ่อม'));
+  assert.equal(r.session.state, STATE.BIND_PRIVACY);
+  r = handle(r.session, null, say('123456'));
+  assert.equal(r.session.state, STATE.BIND_PRIVACY, 'ต้องกดรับทราบนโยบายก่อนใส่รหัส');
+  r = handle(r.session, null, say('รับทราบนโยบาย'));
   assert.equal(r.session.state, STATE.BIND_WAIT_CODE);
   r = handle(r.session, null, say('123 456'));
-  assert.deepEqual(r.effects, [{ type: 'redeemCode', code: '123456' }]);
+  assert.deepEqual(r.effects, [{ type: 'redeemCode', code: '123456', privacyVersion: PRIVACY_VERSION }]);
 });
 
 test('ผูกห้องถูกยกเลิกแล้ว (ย้ายออก): แจ้งซ่อมไม่ได้ ต้องใส่รหัสใหม่', () => {
   const r = handle(null, { status: 'REVOKED', roomNo: '305' }, say('แจ้งซ่อม'));
-  assert.equal(r.session.state, STATE.BIND_WAIT_CODE);
+  assert.equal(r.session.state, STATE.BIND_PRIVACY);
 });
 
 test('รหัสผิดรูปแบบ ถามซ้ำ', () => {
@@ -131,4 +135,14 @@ test('ตั้งเวลาแจ้งเตือนน้ำได้ถ�
   assert.equal(parseDuration('181'), null);
   assert.deepEqual(parseWaterRule('ทั้งวัน 30 วินาที'), { allDay: true, minutes: 0.5 });
   assert.deepEqual(parseWaterRule('09:00-10:00 1 นาที 30 วินาที'), { start: 540, end: 600, minutes: 1.5 });
+});
+
+test('ปุ่มให้คะแนนหลังแจ้งผล ใช้ได้ทุกขั้นและไม่ล้างร่างที่ค้างอยู่', () => {
+  const mid = { state: STATE.REPORT_DETAIL, draft: { category: 'PLUMBING', photoMessageIds: [] } };
+  let r = handle(mid, active, { kind: 'postback', data: 'rate:r_abc:4' });
+  assert.deepEqual(r.effects, [{ type: 'rateTicket', ticketId: 'r_abc', rating: 4, issue: false }]);
+  assert.equal(r.session, mid);
+  r = handle(null, active, { kind: 'postback', data: 'rate:r_abc:issue' });
+  assert.deepEqual(r.effects, [{ type: 'rateTicket', ticketId: 'r_abc', rating: null, issue: true }]);
+  assert.notEqual(handle(null, active, { kind: 'postback', data: 'rate:r_abc:9' }).effects[0]?.type, 'rateTicket');
 });

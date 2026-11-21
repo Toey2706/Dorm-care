@@ -219,6 +219,37 @@ export function help(bound = false) {
   return card('เลือกเมนูที่ต้องการ', { title: 'เมนู', subtitle: 'เลือกเมนูที่ต้องการ', buttons });
 }
 
+export const PRIVACY_URL = 'https://toey2706.github.io/Dorm-care/privacy.html';
+
+export function privacyNotice() {
+  const alt =
+    'ก่อนผูกเลขห้อง โปรดรับทราบการเก็บข้อมูล\n' +
+    'ระบบเก็บ LINE user ID ชื่อที่แสดงใน LINE เลขห้อง รายละเอียดและรูปที่แจ้งซ่อม และข้อมูลการใช้น้ำ (ห้องที่ติดอุปกรณ์) ' +
+    'เพื่อรับเรื่อง ซ่อม และแจ้งผลเท่านั้น\n' +
+    `อ่านนโยบายฉบับเต็ม: ${PRIVACY_URL}\n` +
+    'กด "รับทราบนโยบาย" เพื่อไปขั้นใส่รหัส';
+  const m = card(alt, {
+    title: 'ก่อนผูกเลขห้อง',
+    subtitle: 'ข้อมูลที่ระบบเก็บ',
+    extra: [
+      numbered([
+        'LINE user ID ชื่อที่แสดงใน LINE และเลขห้อง',
+        'รายละเอียดและรูปที่แนบตอนแจ้งซ่อม',
+        'ข้อมูลการใช้น้ำ เฉพาะห้องที่ติดอุปกรณ์วัดน้ำ',
+      ]),
+      note('ใช้เพื่อรับเรื่อง ซ่อม แจ้งผล และแจ้งเตือนน้ำไหลค้างเท่านั้น ผู้ดูแลและช่างที่รับงานเท่านั้นที่เห็นข้อมูล', { bg: TINT, fg: BRAND }),
+    ],
+    buttons: [['รับทราบนโยบาย', 'primary'], ['ยกเลิก', 'link']],
+  });
+  m.contents.footer.contents.splice(1, 0, {
+    type: 'button',
+    style: 'secondary',
+    height: 'sm',
+    action: { type: 'uri', label: 'อ่านนโยบายฉบับเต็ม', uri: PRIVACY_URL },
+  });
+  return m;
+}
+
 export function askBindCode() {
   return card('กรุณาพิมพ์รหัสผูกห้อง 6 หลักที่ได้รับจากผู้ดูแลหอพัก', {
     title: 'ผูกเลขห้อง',
@@ -360,6 +391,46 @@ export function bindCodeInvalid() {
 }
 
 /** heroUrl คือรูปหลังซ่อมรูปแรก ใช้เป็นภาพหัวการ์ด รูปเต็มทุกรูปยังส่งตามมาเป็นข้อความรูปภาพ */
+const STARS = [1, 2, 3, 4, 5];
+
+const ratingFooter = (ticketId) => [
+  { type: 'text', text: 'ให้คะแนนงานซ่อมนี้', size: 'xs', color: MUTED, align: 'center' },
+  {
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    contents: STARS.map((n) => ({
+      type: 'box',
+      layout: 'vertical',
+      flex: 1,
+      paddingAll: '8px',
+      cornerRadius: '10px',
+      backgroundColor: TINT,
+      action: { type: 'postback', label: `${n} ดาว`, data: `rate:${ticketId}:${n}`, displayText: `ให้ ${n} ดาว` },
+      contents: [{ type: 'text', text: `${n}★`, size: 'sm', weight: 'bold', color: BRAND, align: 'center' }],
+    })),
+  },
+  {
+    type: 'button',
+    style: 'link',
+    height: 'sm',
+    action: { type: 'postback', label: 'ยังมีปัญหาอยู่', data: `rate:${ticketId}:issue`, displayText: 'ยังมีปัญหาอยู่' },
+  },
+];
+
+export function ratingThanks(ticketNo, rating) {
+  return text(`ขอบคุณที่ให้คะแนน ${rating} ดาว สำหรับงาน ${ticketNo}`);
+}
+
+export function issueReceived(ticketNo) {
+  return card(`รับทราบว่างาน ${ticketNo} ยังมีปัญหาอยู่ ระบบแจ้งผู้ดูแลแล้ว`, {
+    title: 'รับเรื่องแล้ว',
+    subtitle: `งาน ${ticketNo} ยังมีปัญหา`,
+    lines: ['ระบบแจ้งผู้ดูแลแล้ว ผู้ดูแลจะติดต่อกลับ หากต้องการแจ้งรายละเอียดเพิ่ม กด "แจ้งซ่อม" เพื่อเปิดงานใหม่'],
+    buttons: [['แจ้งซ่อม', 'primary'], ['ติดต่อผู้ดูแล', 'secondary']],
+  });
+}
+
 export function repairResult(ticket, categoryLabel, heroUrl) {
   const alt =
     'แจ้งผลการซ่อม\n' +
@@ -393,7 +464,7 @@ export function repairResult(ticket, categoryLabel, heroUrl) {
       margin: 'md',
     });
   }
-  const card = bubble({ body });
+  const card = bubble({ body, footer: ticket.id ? ratingFooter(ticket.id) : undefined });
   if (heroUrl) {
     card.hero = { type: 'image', url: heroUrl, size: 'full', aspectRatio: '20:13', aspectMode: 'cover', action: { type: 'uri', label: 'ดูรูป', uri: heroUrl } };
   }

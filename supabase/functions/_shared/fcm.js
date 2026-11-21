@@ -103,5 +103,6 @@ export function staffMessage(kind, t) {
   if (kind === 'created') return { title: 'มีแจ้งซ่อมใหม่', body: where, data };
   if (kind === 'assigned') return { title: 'คุณได้รับมอบหมายงานใหม่', body: where, data };
   if (kind === 'completed') return { title: 'ช่างบันทึกผลแล้ว รอแจ้งผลทาง LINE', body: where, data };
+  if (kind === 'issue') return { title: 'ผู้พักแจ้งว่างานยังมีปัญหา', body: where, data };
   throw new Error(`unknown kind ${kind}`);
 }

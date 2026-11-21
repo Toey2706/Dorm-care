@@ -51,13 +51,14 @@ test('แจ้งผลการซ่อมมีรูปหัวการ�
 
 test('ทุกขั้นที่มีปุ่มเป็นการ์ด ปุ่มในการ์ดตรงกับ quick reply', () => {
   const cats = [{ code: 'PLUMBING', label: 'ประปา' }, { code: 'ELECTRICAL', label: 'ไฟฟ้า' }];
-  for (const m of [M.welcome(), M.welcome(true), M.help(), M.help(true), M.askBindCode(), M.askCategory(cats), M.askDetail(), M.askPhoto(3), M.photoReceived(1, 3), M.reportFailed(), M.bindingDone('A1-01')]) {
+  for (const m of [M.welcome(), M.welcome(true), M.help(), M.help(true), M.askBindCode(), M.privacyNotice(), M.issueReceived('R2569-0001'), M.askCategory(cats), M.askDetail(), M.askPhoto(3), M.photoReceived(1, 3), M.reportFailed(), M.bindingDone('A1-01')]) {
     assert.equal(m.type, 'flex');
-    const inCard = m.contents.footer.contents.map((b) => b.action.text);
+    const inCard = m.contents.footer.contents.filter((b) => b.action.type === 'message').map((b) => b.action.text);
     assert.deepEqual(inCard, m.quickReply.items.map((i) => i.action.text));
     assert.ok(texts(m.contents).every((t) => typeof t === 'string' && t.length > 0));
   }
   assert.deepEqual(M.askPhoto(3).contents.footer.contents.map((b) => b.action.text), ['ข้าม', 'ยกเลิก']);
+  assert.equal(M.privacyNotice().contents.footer.contents.find((b) => b.action.type === 'uri').action.uri, M.PRIVACY_URL);
 });
 
 test('ยังไม่ผูกห้อง ต้อนรับและเมนูมีแค่ผูกเลขห้องกับติดต่อผู้ดูแล', () => {
@@ -92,4 +93,10 @@ test('การ์ดตั้งแจ้งเตือนน้ำมีป�
   const json = JSON.stringify(m.contents);
   assert.match(json, /"data":"water:del:7"/);
   assert.match(json, /ลบช่วงเวลา 09:00-10:00/);
+});
+
+test('การ์ดแจ้งผลมีปุ่มให้คะแนน 1-5 และปุ่มยังมีปัญหา ส่ง postback พร้อมรหัสงาน', () => {
+  const m = M.repairResult({ id: 'r_abc', ticketNo: 'R1', roomNo: 'A1-01', repairResult: 'เปลี่ยนซีล', photoCount: 0 }, 'ประปา');
+  const data = JSON.stringify(m.contents.footer).match(/rate:[^"]+/g);
+  assert.deepEqual(data, ['rate:r_abc:1', 'rate:r_abc:2', 'rate:r_abc:3', 'rate:r_abc:4', 'rate:r_abc:5', 'rate:r_abc:issue']);
 });

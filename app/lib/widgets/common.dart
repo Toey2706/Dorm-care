@@ -88,6 +88,16 @@ class TicketTile extends StatelessWidget {
                   style: theme.textTheme.bodySmall,
                 ),
                 AgeLabel(ticket),
+                if (ticket.residentIssue)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text('ผู้พักแจ้งว่ายังมีปัญหา', style: TextStyle(color: Color(0xFF8A3B07), fontWeight: FontWeight.w600)),
+                  )
+                else if (ticket.residentRating != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('คะแนนผู้พัก ${ticket.residentRating}/5', style: theme.textTheme.bodySmall),
+                  ),
               ]),
             ),
           ]),

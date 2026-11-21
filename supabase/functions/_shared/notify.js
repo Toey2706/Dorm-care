@@ -42,7 +42,7 @@ export async function notifyResident({ rpc, client, logger, photoUrls }, { ticke
     logger.warn('photo links failed, sending text only', { ticketId, error: err.message });
   }
   const message = M.repairResult(
-    { ticketNo: t.ticket_no, roomNo: t.room_no, repairResult: t.repair_result, photoCount: urls.length, photoDays: PHOTO_DAYS },
+    { id: t.id, ticketNo: t.ticket_no, roomNo: t.room_no, repairResult: t.repair_result, photoCount: urls.length, photoDays: PHOTO_DAYS },
     categoryLabel(t.category),
     urls[0]
   );

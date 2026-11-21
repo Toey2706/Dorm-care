@@ -42,6 +42,13 @@ const webhook = createWebhook({
     // @ts-ignore EdgeRuntime มีเฉพาะบน Supabase Edge Functions
     if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(job);
   },
+  onResidentIssue(ticket: { id: string; ticket_no: string; room_no: string; category: string }) {
+    const job = staffPush(db)
+      .toAdmins(staffMessage('issue', ticket))
+      .catch((err: Error) => logger.warn('staff push failed', { error: err.message }));
+    // @ts-ignore EdgeRuntime มีเฉพาะบน Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(job);
+  },
 });
 
 Deno.serve(async (req) => {

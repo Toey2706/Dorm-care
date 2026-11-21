@@ -25,10 +25,14 @@ export const COMMAND = Object.freeze({
   WATER_ADD: 'ตั้งเวลาแจ้งเตือน',
   WATER_CLEAR: 'ลบช่วงเวลาทั้งหมด',
   WATER_USAGE: 'ดูการใช้น้ำ',
+  PRIVACY_ACK: 'รับทราบนโยบาย',
 });
+
+export const PRIVACY_VERSION = '2026-11-22';
 
 export const STATE = Object.freeze({
   IDLE: 'IDLE',
+  BIND_PRIVACY: 'BIND_PRIVACY',
   BIND_WAIT_CODE: 'BIND_WAIT_CODE',
   REPORT_CATEGORY: 'REPORT_CATEGORY',
   REPORT_DETAIL: 'REPORT_DETAIL',
@@ -98,8 +102,8 @@ function reply(...messages) {
 function startReport(binding, startedAt) {
   if (!binding || binding.status !== 'ACTIVE') {
     return {
-      session: { state: STATE.BIND_WAIT_CODE, draft: null },
-      effects: [reply(M.text('ต้องผูกบัญชี LINE กับห้องพักก่อนแจ้งซ่อม'), M.askBindCode())],
+      session: { state: STATE.BIND_PRIVACY, draft: null },
+      effects: [reply(M.text('ต้องผูกบัญชี LINE กับห้องพักก่อนแจ้งซ่อม'), M.privacyNotice())],
     };
   }
   return {
@@ -121,7 +125,7 @@ function handleCommand(text, binding, startedAt) {
       if (binding && binding.status === 'ACTIVE') {
         return { session: idle(), effects: [reply(M.text(`บัญชีนี้ผูกกับห้อง ${binding.roomNo} แล้ว หากต้องการเปลี่ยนห้อง กรุณาติดต่อผู้ดูแล`))] };
       }
-      return { session: { state: STATE.BIND_WAIT_CODE, draft: null }, effects: [reply(M.askBindCode())] };
+      return { session: { state: STATE.BIND_PRIVACY, draft: null }, effects: [reply(M.privacyNotice())] };
     case COMMAND.CONTACT:
       return { session: idle(), effects: [{ type: 'showContact' }] };
     case COMMAND.WATER:
@@ -223,20 +227,29 @@ export function handle(session, binding, event) {
     return { session: idle(), effects: [{ type: 'deleteWaterRule', id: Number(del[1]) }] };
   }
 
-  // ปุ่ม Rich Menu ขัดจังหวะได้ทุกขั้น
+  const rate = event.kind === 'postback' ? /^rate:([A-Za-z0-9_-]{1,64}):([1-5]|issue)$/.exec(String(event.data || '')) : null;
+  if (rate) {
+    const issue = rate[2] === 'issue';
+    return { session: current, effects: [{ type: 'rateTicket', ticketId: rate[1], rating: issue ? null : Number(rate[2]), issue }] };
+  }
+
   if (text !== null) {
     const commandResult = handleCommand(text, binding, event.at || 0);
     if (commandResult) return commandResult;
   }
 
   switch (current.state) {
+    case STATE.BIND_PRIVACY: {
+      if (text !== COMMAND.PRIVACY_ACK) return { session: current, effects: [reply(M.privacyNotice())] };
+      return { session: { state: STATE.BIND_WAIT_CODE, draft: { privacyVersion: PRIVACY_VERSION } }, effects: [reply(M.askBindCode())] };
+    }
     case STATE.BIND_WAIT_CODE: {
       if (text === null) return { session: current, effects: [reply(M.askBindCode())] };
       const code = text.replace(/\s|-/g, '');
       if (!CODE_PATTERN.test(code)) {
         return { session: current, effects: [reply(M.text('รหัสต้องเป็นตัวเลข 6 หลักตามที่ได้รับจากผู้ดูแล กรุณาพิมพ์ใหม่'))] };
       }
-      return { session: current, effects: [{ type: 'redeemCode', code }] };
+      return { session: current, effects: [{ type: 'redeemCode', code, privacyVersion: (current.draft && current.draft.privacyVersion) || null }] };
     }
 
     case STATE.REPORT_CATEGORY: {

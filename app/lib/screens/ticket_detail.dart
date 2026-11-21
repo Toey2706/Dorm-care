@@ -74,6 +74,23 @@ class _Body extends StatelessWidget {
           row('ผู้รับผิดชอบ', t.assignedToName ?? 'ยังไม่มอบหมาย'),
           if (t.completedAt != null) row('ซ่อมเสร็จเมื่อ', thaiDate(t.completedAt)),
           if (t.notifiedAt != null) row('แจ้ง LINE เมื่อ', thaiDate(t.notifiedAt)),
+          if (t.residentRating != null) row('คะแนนจากผู้พัก', '${'★' * t.residentRating!}${'☆' * (5 - t.residentRating!)} (${t.residentRating}/5)'),
+          if (t.residentIssue)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                const Icon(Icons.report_problem_outlined, color: Color(0xFF8A3B07), size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'ผู้พักแจ้งว่ายังมีปัญหา เมื่อ ${thaiDate(t.residentFeedbackAt)} กรุณาติดต่อผู้พัก',
+                    style: const TextStyle(color: Color(0xFF8A3B07), fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ]),
+            ),
         ]),
         section('รายละเอียดจากผู้แจ้ง', [Text(t.description.isEmpty ? '-' : t.description),const SizedBox(height: 8), StoragePhotos('resident-photos', t.photoPaths)]),
         if (t.repairResult != null)
