@@ -154,18 +154,82 @@ class StoragePhotos extends StatelessWidget {
               child: SizedBox(
                 width: 96,
                 height: 96,
-                child: snap.hasData
-                    ? GestureDetector(
-                        onTap: () => showDialog(context: context, builder: (_) => Dialog(child: Image.network(snap.data!))),
-                        child: Image.network(snap.data!, fit: BoxFit.cover),
-                      )
-                    : const ColoredBox(color: Color(0xFFE3E8EF), child: Icon(Icons.image_outlined, color: mutedText)),
+                child: snap.hasError
+                    ? const _PhotoPlaceholder(icon: Icons.broken_image_outlined)
+                    : !snap.hasData
+                        ? const _PhotoPlaceholder(loading: true)
+                        : GestureDetector(
+                            onTap: () => showPhoto(context, snap.data!),
+                            child: Image.network(
+                              snap.data!,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) => progress == null ? child : const _PhotoPlaceholder(loading: true),
+                              errorBuilder: (context, error, stack) => const _PhotoPlaceholder(icon: Icons.broken_image_outlined),
+                            ),
+                          ),
               ),
             ),
           ),
       ],
     );
   }
+}
+
+class _PhotoPlaceholder extends StatelessWidget {
+  const _PhotoPlaceholder({this.loading = false, this.icon = Icons.image_outlined});
+  final bool loading;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: const Color(0xFFE3E8EF),
+      child: Center(
+        child: loading
+            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
+            : Icon(icon, color: mutedText),
+      ),
+    );
+  }
+}
+
+Future<void> showPhoto(BuildContext context, String url) {
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black87,
+    builder: (context) => Stack(children: [
+      Positioned.fill(
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: InteractiveViewer(
+            maxScale: 5,
+            child: Center(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) =>
+                    progress == null ? child : const Center(child: CircularProgressIndicator(color: Colors.white)),
+                errorBuilder: (context, error, stack) =>
+                    const Text('เปิดรูปไม่สำเร็จ', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ),
+        ),
+      ),
+      Positioned(
+        top: 12,
+        right: 12,
+        child: SafeArea(
+          child: IconButton.filled(
+            tooltip: 'ปิด',
+            style: IconButton.styleFrom(backgroundColor: Colors.black54),
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close, color: Colors.white),
+          ),
+        ),
+      ),
+    ]),
+  );
 }
 
 /// เรียกงานที่อาจล้มเหลว แล้วแสดงผลเป็น SnackBar

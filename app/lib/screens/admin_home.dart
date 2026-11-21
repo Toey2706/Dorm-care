@@ -147,8 +147,9 @@ class _TicketsPageState extends State<_TicketsPage> {
   }
 
   Widget _categoryChips() {
-    return SizedBox(
+    return Container(
       height: 40,
+      margin: const EdgeInsets.only(bottom: 10),
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -291,7 +292,6 @@ class AccountPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final buildInfo = [if (buildSha.isNotEmpty) 'build $buildSha', if (buildDate.isNotEmpty) buildDate].join(' · ');
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -322,7 +322,7 @@ class AccountPage extends StatelessWidget {
         const SizedBox(height: 24),
         Center(
           child: Text(
-            'Dorm Care เวอร์ชัน $appVersion${buildInfo.isEmpty ? '' : '\n$buildInfo'}',
+            'Dorm Care เวอร์ชัน $appVersion',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall,
           ),

@@ -12,6 +12,4 @@ const firebaseSenderId = String.fromEnvironment('FIREBASE_SENDER_ID');
 const firebaseProjectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
 
 const appVersion = '1.1.0';
-const buildSha = String.fromEnvironment('BUILD_SHA');
-const buildDate = String.fromEnvironment('BUILD_DATE');
 const privacyUrl = 'https://toey2706.github.io/Dorm-care/privacy.html';
