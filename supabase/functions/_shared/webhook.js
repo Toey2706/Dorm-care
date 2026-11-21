@@ -44,7 +44,7 @@ function toConversationEvent(event) {
  */
 const BOUND_ONLY = new Set(['แจ้งซ่อม', 'ติดตามงาน']);
 
-export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketCreated = null }) {
+export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketCreated = null, waterUsage = null }) {
   const setIdle = (userId) => rpc('line_set_idle', { p_user_id: userId });
 
   async function syncMenu(userId, bound) {
@@ -102,7 +102,8 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
       if (effect.type === 'showContact') replies.push(M.contact(await rpc('line_contact_text')));
       if (effect.type === 'redeemCode') replies.push(await redeemCode(client, userId, effect.code));
       if (effect.type === 'createTicket') replies.push(await submitReport(client, userId, effect.draft));
-      if (effect.type === 'showWaterRules') replies.push(await waterRulesMessage(userId));
+      if (effect.type === 'showWaterRules') replies.push(...(await waterMessages(userId, true)));
+      if (effect.type === 'showWaterUsage') replies.push(...(await waterMessages(userId, false)));
       if (effect.type === 'clearWaterRules') {
         await rpc('line_clear_water_rules', { p_user_id: userId });
         replies.push(M.text('ลบช่วงเวลาทั้งหมดแล้ว'), await waterRulesMessage(userId));
@@ -113,11 +114,34 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
     return replies;
   }
 
+  const noWaterMessage = (info) =>
+    !info
+      ? M.text('ยังไม่ได้ผูกห้อง กด "ผูกเลขห้อง" ก่อนตั้งแจ้งเตือนน้ำ')
+      : M.text(`ห้อง ${info.room_no} ยังไม่ได้ติดอุปกรณ์วัดน้ำ หากสนใจติดตั้ง กรุณาติดต่อผู้ดูแล`);
+
   async function waterRulesMessage(userId) {
     const info = await rpc('line_water_rules', { p_user_id: userId });
-    if (!info) return M.text('ยังไม่ได้ผูกห้อง กด "ผูกเลขห้อง" ก่อนตั้งแจ้งเตือนน้ำ');
-    if (!info.has_device) return M.text(`ห้อง ${info.room_no} ยังไม่ได้ติดอุปกรณ์วัดน้ำ หากสนใจติดตั้ง กรุณาติดต่อผู้ดูแล`);
+    if (!info || !info.has_device) return noWaterMessage(info);
     return M.waterRules(info.room_no, info.rules || [], info.default_minutes || 10);
+  }
+
+  async function usageOf(roomNo) {
+    if (!waterUsage) return null;
+    try {
+      return await waterUsage(roomNo);
+    } catch (err) {
+      logger.warn('water usage failed', { roomNo, error: err.message });
+      return null;
+    }
+  }
+
+  async function waterMessages(userId, withRules) {
+    const info = await rpc('line_water_rules', { p_user_id: userId });
+    if (!info || !info.has_device) return [noWaterMessage(info)];
+    const usage = await usageOf(info.room_no);
+    const rules = M.waterRules(info.room_no, info.rules || [], info.default_minutes || 10);
+    if (!usage) return withRules ? [rules] : [M.text('ยังอ่านปริมาณการใช้น้ำไม่ได้ ลองใหม่อีกครั้งภายหลัง')];
+    return withRules ? [M.waterUsage(info.room_no, usage), rules] : [M.waterUsage(info.room_no, usage)];
   }
 
   async function addWaterRule(userId, rule) {

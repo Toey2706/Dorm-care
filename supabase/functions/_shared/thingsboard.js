@@ -13,9 +13,8 @@ export function thingsboard({ base = 'https://thingsboard.cloud', publicId, fetc
     tokenAt = Date.now();
   }
 
-  async function telemetry(deviceId, keys) {
+  async function get(url) {
     if (!token || Date.now() - tokenAt > 10 * 60_000) await login();
-    const url = `${base}/api/plugins/telemetry/DEVICE/${encodeURIComponent(deviceId)}/values/timeseries?keys=${keys.join(',')}`;
     let res = await fetch(url, { headers: { 'X-Authorization': `Bearer ${token}` } });
     if (res.status === 401) {
       await login();
@@ -25,5 +24,16 @@ export function thingsboard({ base = 'https://thingsboard.cloud', publicId, fetc
     return res.json();
   }
 
-  return { telemetry };
+  const series = (deviceId) => `${base}/api/plugins/telemetry/DEVICE/${encodeURIComponent(deviceId)}/values/timeseries`;
+
+  const telemetry = (deviceId, keys) => get(`${series(deviceId)}?keys=${keys.join(',')}`);
+
+  async function sum(deviceId, key, startTs, endTs) {
+    const interval = Math.max(1, endTs - startTs);
+    const data = await get(`${series(deviceId)}?keys=${key}&startTs=${startTs}&endTs=${endTs}&agg=SUM&interval=${interval}&limit=1`);
+    const total = (data[key] || []).reduce((acc, p) => acc + (Number(p.value) || 0), 0);
+    return Math.round(total * 10) / 10;
+  }
+
+  return { telemetry, sum };
 }

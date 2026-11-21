@@ -5,9 +5,12 @@ import { ALIAS, richMenuApi } from '../_shared/richmenu.js';
 import { env, logger, rpcOf, serviceClient } from '../_shared/deno.ts';
 import { staffMessage } from '../_shared/fcm.js';
 import { staffPush } from '../_shared/staff-push.ts';
+import { thingsboard } from '../_shared/thingsboard.js';
+import { waterUsage as usageFor } from '../_shared/water.js';
 
 const db = serviceClient();
 const menus = richMenuApi(env('LINE_CHANNEL_ACCESS_TOKEN'));
+const tb = thingsboard({ publicId: Deno.env.get('TB_PUBLIC_ID') ?? '495be850-e42c-11f1-b8a1-9db681a717b8' });
 const webhook = createWebhook({
   rpc: rpcOf(db),
   storage: {
@@ -17,6 +20,12 @@ const webhook = createWebhook({
     },
   },
   logger,
+  async waterUsage(roomNo: string) {
+    const { data, error } = await db.from('water_devices').select('tb_device_id').eq('room_no', roomNo).eq('active', true).maybeSingle();
+    if (error) throw error;
+    if (!data?.tb_device_id) return null;
+    return usageFor({ sum: tb.sum, deviceId: data.tb_device_id, nowMs: Date.now() });
+  },
   richMenu: {
     async toBound(userId: string) {
       const info = await rpcOf(db)('line_water_rules', { p_user_id: userId }).catch(() => null);

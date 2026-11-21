@@ -24,6 +24,7 @@ export const COMMAND = Object.freeze({
   WATER: 'ตั้งแจ้งเตือนน้ำ',
   WATER_ADD: 'ตั้งเวลาแจ้งเตือน',
   WATER_CLEAR: 'ลบช่วงเวลาทั้งหมด',
+  WATER_USAGE: 'ดูการใช้น้ำ',
 });
 
 export const STATE = Object.freeze({
@@ -113,11 +114,13 @@ function handleCommand(text, binding, startedAt) {
     case COMMAND.WATER:
     case COMMAND.WATER_ADD:
     case COMMAND.WATER_CLEAR:
+    case COMMAND.WATER_USAGE:
       if (!binding || binding.status !== 'ACTIVE') {
         return { session: idle(), effects: [reply(M.text('ยังไม่ได้ผูกห้อง กด "ผูกเลขห้อง" ก่อนตั้งแจ้งเตือนน้ำ'))] };
       }
       if (text === COMMAND.WATER) return { session: idle(), effects: [{ type: 'showWaterRules' }] };
       if (text === COMMAND.WATER_CLEAR) return { session: idle(), effects: [{ type: 'clearWaterRules' }] };
+      if (text === COMMAND.WATER_USAGE) return { session: idle(), effects: [{ type: 'showWaterUsage' }] };
       return { session: { state: STATE.WATER_RULE, draft: null }, effects: [reply(M.askWaterMode())] };
     default:
       return null;

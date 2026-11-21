@@ -330,6 +330,35 @@ export function waterRules(roomNo, rules, defaultMinutes = 10) {
   return card(`ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}\n${lines.join('\n')}`, { title: `ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}`, subtitle: 'ช่วงเวลาที่ตั้งไว้', lines, buttons });
 }
 
+const liters = (v) => `${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ลิตร`;
+
+export function waterUsage(roomNo, usage) {
+  const at = new Date(usage.at).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' });
+  const items = [
+    ['วันนี้', usage.today_l],
+    ['7 วัน', usage.week_l],
+    ['30 วัน', usage.month_l],
+  ];
+  const alt = `การใช้น้ำ ห้อง ${roomNo} (ถึง ${at} น.)\n${items.map(([l, v]) => `${l} ${liters(v)}`).join('\n')}`;
+  const line = ([label, value]) => ({
+    type: 'box',
+    layout: 'horizontal',
+    contents: [
+      { type: 'text', text: label, size: 'md', color: MUTED, flex: 2 },
+      { type: 'text', text: liters(value), size: 'md', color: INK, weight: 'bold', align: 'end', flex: 3 },
+    ],
+  });
+  const b = bubble({
+    header: header(`การใช้น้ำ ห้อง ${roomNo}`, liters(usage.today_l)),
+    body: [
+      { type: 'text', text: `วันนี้ตั้งแต่เที่ยงคืนถึง ${at} น.`, size: 'xs', color: MUTED },
+      ...items.map(line),
+      { type: 'text', text: '7 วันและ 30 วันนับรวมวันนี้', size: 'xs', color: MUTED, wrap: true },
+    ],
+  });
+  return { ...flex(alt, b), quickReply: quickReply(['ดูการใช้น้ำ', 'ตั้งเวลาแจ้งเตือน']) };
+}
+
 export function askWaterMode() {
   return card('ตั้งเวลาแจ้งเตือนน้ำ เลือก เฉพาะช่วงเวลา หรือ ทั้งวัน', {
     title: 'ตั้งเวลาแจ้งเตือน',

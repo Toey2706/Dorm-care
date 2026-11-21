@@ -105,14 +105,35 @@ export function summarizeTelemetry(series, nowMs) {
   };
 }
 
-export async function waterStatus({ devices, telemetry, logger, now = () => new Date() }) {
+const BKK_MS = 7 * 3600_000;
+const DAY_MS = 86_400_000;
+
+export function usageWindows(nowMs) {
+  const today = Math.floor((nowMs + BKK_MS) / DAY_MS) * DAY_MS - BKK_MS;
+  return { today, week: today - 6 * DAY_MS, month: today - 29 * DAY_MS, end: nowMs };
+}
+
+export async function waterUsage({ sum, deviceId, nowMs }) {
+  const w = usageWindows(nowMs);
+  const [today_l, week_l, month_l] = await Promise.all([w.today, w.week, w.month].map((start) => sum(deviceId, 'used_l', start, w.end)));
+  return { today_l, week_l, month_l, at: new Date(nowMs).toISOString() };
+}
+
+export async function waterStatus({ devices, telemetry, sum = null, logger, now = () => new Date() }) {
   const list = await devices();
   const nowMs = now().getTime();
   return Promise.all(
     list.map(async (d) => {
       const base = { id: d.id, room_no: d.room_no, label: d.label ?? '' };
       try {
-        return { ...base, ...summarizeTelemetry(await telemetry(d.tb_device_id, KEYS), nowMs) };
+        const status = { ...base, ...summarizeTelemetry(await telemetry(d.tb_device_id, KEYS), nowMs) };
+        if (sum) {
+          status.usage = await waterUsage({ sum, deviceId: d.tb_device_id, nowMs }).catch((err) => {
+            logger.warn('water usage failed', { id: d.id, message: err.message });
+            return null;
+          });
+        }
+        return status;
       } catch (err) {
         logger.error('water telemetry failed', { id: d.id, message: err.message });
         return { ...base, online: false, last_seen: null, error: 'อ่านค่าจากอุปกรณ์ไม่ได้' };

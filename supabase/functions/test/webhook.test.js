@@ -82,7 +82,7 @@ function fakeLine() {
   };
 }
 
-function setup() {
+function setup(opts = {}) {
   const db = fakeDb();
   const line = fakeLine();
   const saved = [];
@@ -91,6 +91,7 @@ function setup() {
   const created = [];
   const hook = createWebhook({
     onTicketCreated: (t) => created.push(t),
+    waterUsage: opts.waterUsage,
     rpc: db.rpc,
     storage: { save: async (path) => saved.push(path) },
     logger: { warn: () => {}, error: (m) => errors.push(m) },
@@ -292,4 +293,34 @@ test('เลือกเวลาจากปุ่มเลือกเวล�
   await t.say('45 นาที');
   assert.deepEqual(t.db.s.rules, [{ start_min: 540, end_min: 600, minutes: 45 }]);
   assert.equal(t.db.s.sessions.U1.state, 'IDLE');
+});
+
+test('ผู้พักดูปริมาณน้ำที่ใช้ วันนี้ 7 วัน และ 30 วัน', async () => {
+  const asked = [];
+  const t = setup({ waterUsage: async (room) => (asked.push(room), { today_l: 12.34, week_l: 80, month_l: 1234.5, at: '2026-11-21T10:20:00Z' }) });
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  await t.say('ดูการใช้น้ำ');
+  assert.deepEqual(asked, ['305']);
+  assert.match(t.last(), /การใช้น้ำ ห้อง 305 \(ถึง 17:20 น\.\)/);
+  assert.match(t.last(), /วันนี้ 12\.3 ลิตร/);
+  assert.match(t.last(), /7 วัน 80\.0 ลิตร/);
+  assert.match(t.last(), /30 วัน 1,234\.5 ลิตร/);
+  await t.say('ตั้งแจ้งเตือนน้ำ');
+  assert.match(t.last(), /ทั้งวันเตือนเมื่อน้ำไหลต่อเนื่องเกิน 10 นาที/);
+});
+
+test('อ่านปริมาณน้ำไม่ได้ ยังตั้งแจ้งเตือนน้ำได้ตามปกติ', async () => {
+  const t = setup({ waterUsage: async () => { throw new Error('thingsboard 502'); } });
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  await t.say('ตั้งแจ้งเตือนน้ำ');
+  assert.match(t.last(), /ยังไม่ได้ตั้งช่วงเวลา/);
+  await t.say('ดูการใช้น้ำ');
+  assert.match(t.last(), /ยังอ่านปริมาณการใช้น้ำไม่ได้/);
+});
+
+test('ห้องที่ไม่มีอุปกรณ์วัดน้ำ ดูการใช้น้ำไม่ได้', async () => {
+  const t = setup({ waterUsage: async () => ({ today_l: 1, week_l: 1, month_l: 1, at: '2026-11-21T10:20:00Z' }) });
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '999', display_name: '' };
+  await t.say('ดูการใช้น้ำ');
+  assert.match(t.last(), /ยังไม่ได้ติดอุปกรณ์วัดน้ำ/);
 });

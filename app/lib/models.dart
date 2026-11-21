@@ -177,6 +177,9 @@ class WaterDevice {
     required this.rssi,
     required this.state,
     required this.error,
+    this.usedToday,
+    this.usedWeek,
+    this.usedMonth,
   });
 
   final String id;
@@ -190,8 +193,13 @@ class WaterDevice {
   final int? rssi;
   final String state;
   final String? error;
+  final double? usedToday;
+  final double? usedWeek;
+  final double? usedMonth;
 
-  factory WaterDevice.fromJson(Map<String, dynamic> d) => WaterDevice(
+  factory WaterDevice.fromJson(Map<String, dynamic> d) {
+    final usage = d['usage'] as Map<String, dynamic>?;
+    return WaterDevice(
         id: d['id'] as String,
         roomNo: (d['room_no'] as String?) ?? '-',
         label: (d['label'] as String?) ?? '',
@@ -203,7 +211,11 @@ class WaterDevice {
         rssi: (d['rssi'] as num?)?.toInt(),
         state: (d['state'] as String?) ?? 'UNKNOWN',
         error: d['error'] as String?,
+        usedToday: (usage?['today_l'] as num?)?.toDouble(),
+        usedWeek: (usage?['week_l'] as num?)?.toDouble(),
+        usedMonth: (usage?['month_l'] as num?)?.toDouble(),
       );
+  }
 }
 
 class WaterAlert {

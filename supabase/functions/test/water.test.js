@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handleWaterAlert, keyMatches, summarizeTelemetry, waterStatus } from '../_shared/water.js';
+import { handleWaterAlert, keyMatches, summarizeTelemetry, usageWindows, waterStatus, waterUsage } from '../_shared/water.js';
 import { thingsboard } from '../_shared/thingsboard.js';
 
 const deps = (over = {}) => {
@@ -157,4 +157,53 @@ test('คำสั่งทดสอบส่งทันทีโดยไม�
   await handleWaterAlert(d, { room: 'A1-01', minutes: 0, test: true });
   assert.equal(pushed.length, 2);
   assert.match(pushed[0][1][0].altText, /ทดสอบการแจ้งเตือน/);
+});
+
+test('ช่วงนับการใช้น้ำเริ่มเที่ยงคืนเวลาไทย และ 7/30 วันนับรวมวันนี้', () => {
+  const now = Date.parse('2026-11-21T10:20:00Z');
+  const w = usageWindows(now);
+  assert.equal(new Date(w.today).toISOString(), '2026-11-20T17:00:00.000Z');
+  assert.equal(new Date(w.week).toISOString(), '2026-11-14T17:00:00.000Z');
+  assert.equal(new Date(w.month).toISOString(), '2026-10-22T17:00:00.000Z');
+  assert.equal(w.end, now);
+  const early = usageWindows(Date.parse('2026-11-21T16:59:00Z'));
+  assert.equal(new Date(early.today).toISOString(), '2026-11-20T17:00:00.000Z');
+  assert.equal(new Date(usageWindows(Date.parse('2026-11-21T17:00:00Z')).today).toISOString(), '2026-11-21T17:00:00.000Z');
+});
+
+test('รวมการใช้น้ำจากค่า used_l สามช่วง', async () => {
+  const calls = [];
+  const sum = async (id, key, start, end) => (calls.push([id, key]), (end - start) / 3_600_000);
+  const now = Date.parse('2026-11-20T17:00:00Z') + 3_600_000;
+  const u = await waterUsage({ sum, deviceId: 'dev', nowMs: now });
+  assert.deepEqual(calls, [['dev', 'used_l'], ['dev', 'used_l'], ['dev', 'used_l']]);
+  assert.equal(u.today_l, 1);
+  assert.equal(u.week_l, 6 * 24 + 1);
+  assert.equal(u.month_l, 29 * 24 + 1);
+  assert.equal(u.at, new Date(now).toISOString());
+});
+
+test('ThingsBoard รวมผลรวมช่วงเดียวด้วย agg=SUM และไม่มีข้อมูลได้ 0', async () => {
+  const urls = [];
+  const fetch = async (url) => {
+    urls.push(url);
+    if (url.endsWith('/login/public')) return { ok: true, json: async () => ({ token: 'T' }) };
+    if (urls.length === 2) return { ok: true, status: 200, json: async () => ({ used_l: [{ ts: 1, value: '12.345' }] }) };
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const tb = thingsboard({ publicId: 'P', fetch });
+  assert.equal(await tb.sum('d1', 'used_l', 1000, 5000), 12.3);
+  assert.match(urls[1], /keys=used_l&startTs=1000&endTs=5000&agg=SUM&interval=4000/);
+  assert.equal(await tb.sum('d1', 'used_l', 1000, 5000), 0);
+});
+
+test('สถานะอุปกรณ์แนบการใช้น้ำ และอ่านการใช้น้ำไม่ได้ก็ยังได้สถานะ', async () => {
+  const base = { devices: async () => [{ id: 'WF-001', room_no: 'A1-01', tb_device_id: 'a' }], telemetry: async () => series(Date.now()), logger: { error() {}, warn() {} } };
+  const ok = await waterStatus({ ...base, sum: async () => 2.5 });
+  assert.deepEqual([ok[0].usage.today_l, ok[0].usage.week_l, ok[0].usage.month_l], [2.5, 2.5, 2.5]);
+  const bad = await waterStatus({ ...base, sum: async () => { throw new Error('502'); } });
+  assert.equal(bad[0].online, true);
+  assert.equal(bad[0].usage, null);
+  const none = await waterStatus(base);
+  assert.equal('usage' in none[0], false);
 });

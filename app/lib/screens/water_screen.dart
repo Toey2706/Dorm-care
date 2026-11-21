@@ -122,6 +122,18 @@ class _DeviceCard extends StatelessWidget {
                 Expanded(child: _Metric(label: 'ปริมาณรวม', value: d.totalL == null ? '-' : d.totalL!.toStringAsFixed(1), unit: 'L')),
               ],
             ),
+            if (d.usedToday != null) ...[
+              const SizedBox(height: 12),
+              Text('ปริมาณน้ำที่ใช้', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(child: _Metric(label: 'วันนี้', value: _liters(d.usedToday), unit: 'L')),
+                  Expanded(child: _Metric(label: '7 วัน', value: _liters(d.usedWeek), unit: 'L')),
+                  Expanded(child: _Metric(label: '30 วัน', value: _liters(d.usedMonth), unit: 'L')),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             if (flowFor != null) Text('ไหลต่อเนื่องมาแล้ว $flowFor'),
             Text(
@@ -137,6 +149,8 @@ class _DeviceCard extends StatelessWidget {
       ),
     );
   }
+
+  static String _liters(double? v) => v == null ? '-' : v.toStringAsFixed(1);
 
   static String _duration(int seconds) {
     final m = seconds ~/ 60;

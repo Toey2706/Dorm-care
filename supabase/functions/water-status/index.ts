@@ -17,6 +17,7 @@ Deno.serve(
         return data ?? [];
       },
       telemetry: tb.telemetry,
+      sum: tb.sum,
       logger,
     });
     return { devices };
