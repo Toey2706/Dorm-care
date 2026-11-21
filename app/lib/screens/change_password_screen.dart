@@ -4,7 +4,8 @@ import '../services/auth_service.dart';
 
 /// เข้าใช้ครั้งแรกด้วยรหัสชั่วคราวที่ผู้ดูแลระบบตั้งให้ ต้องเปลี่ยนก่อนใช้งาน
 class ChangePasswordScreen extends StatefulWidget {
-  const ChangePasswordScreen({super.key});
+  const ChangePasswordScreen({super.key, this.voluntary = false});
+  final bool voluntary;
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -38,6 +39,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     });
     try {
       await AuthService.instance.changePassword(_password.text);
+      if (widget.voluntary && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('เปลี่ยนรหัสผ่านแล้ว')));
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -49,8 +54,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ตั้งรหัสผ่านใหม่'),
-        actions: [TextButton(onPressed: AuthService.instance.signOut, child: const Text('ออกจากระบบ'))],
+        title: Text(widget.voluntary ? 'เปลี่ยนรหัสผ่าน' : 'ตั้งรหัสผ่านใหม่'),
+        actions: widget.voluntary ? null : [TextButton(onPressed: AuthService.instance.signOut, child: const Text('ออกจากระบบ'))],
       ),
       body: SafeArea(
         child: Center(
@@ -61,7 +66,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('บัญชีนี้ใช้รหัสผ่านชั่วคราวอยู่ กรุณาตั้งรหัสผ่านของคุณเองก่อนเริ่มใช้งาน'),
+                  Text(widget.voluntary ? 'ตั้งรหัสผ่านใหม่สำหรับบัญชีนี้' : 'บัญชีนี้ใช้รหัสผ่านชั่วคราวอยู่ กรุณาตั้งรหัสผ่านของคุณเองก่อนเริ่มใช้งาน'),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _password,

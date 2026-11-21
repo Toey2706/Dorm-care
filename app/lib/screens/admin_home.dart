@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../config.dart';
 
 import '../models.dart';
 import '../services/api.dart';
@@ -6,6 +9,7 @@ import '../services/auth_service.dart';
 import '../widgets/adaptive_nav.dart';
 import '../widgets/common.dart';
 import 'bindings_screen.dart';
+import 'change_password_screen.dart';
 import 'ticket_detail.dart';
 import 'water_screen.dart';
 
@@ -286,15 +290,43 @@ class AccountPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final buildInfo = [if (buildSha.isNotEmpty) 'build $buildSha', if (buildDate.isNotEmpty) buildDate].join(' · ');
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text(me.name, style: Theme.of(context).textTheme.titleLarge),
+        Text(me.name, style: theme.textTheme.titleLarge),
         Text(me.email),
         if (me.phone != null) Text('โทร ${me.phone}'),
         Text(me.isAdmin ? 'บทบาท: ผู้ดูแลหอพัก' : 'บทบาท: ช่างซ่อมบำรุง'),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        Card(
+          child: Column(children: [
+            ListTile(
+              leading: const Icon(Icons.lock_reset),
+              title: const Text('เปลี่ยนรหัสผ่าน'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChangePasswordScreen(voluntary: true))),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('นโยบายความเป็นส่วนตัว'),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => launchUrl(Uri.parse(privacyUrl), mode: LaunchMode.externalApplication),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 16),
         OutlinedButton(onPressed: AuthService.instance.signOut, child: const Text('ออกจากระบบ')),
+        const SizedBox(height: 24),
+        Center(
+          child: Text(
+            'Dorm Care เวอร์ชัน $appVersion${buildInfo.isEmpty ? '' : '\n$buildInfo'}',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
       ],
     );
   }

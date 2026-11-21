@@ -44,10 +44,12 @@ jobs:
       - run: flutter pub get
       - name: ตรวจโค้ด
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: ข้อมูล build
+        run: echo "BUILD_DEFINES=--dart-define=BUILD_SHA=${GITHUB_SHA::7} --dart-define=BUILD_DATE=$(TZ=Asia/Bangkok date +%Y-%m-%d)" >> "$GITHUB_ENV"
       - name: build เว็บ
-        run: flutter build web --release --base-href /${{ github.event.repository.name }}/ --dart-define-from-file=config.json
+        run: flutter build web --release --base-href /${{ github.event.repository.name }}/ --dart-define-from-file=config.json $BUILD_DEFINES
       - name: build APK
-        run: flutter build apk --release --dart-define-from-file=config.json
+        run: flutter build apk --release --dart-define-from-file=config.json $BUILD_DEFINES
       # วาง APK ไว้บนเว็บด้วย ให้โหลดได้ที่ลิงก์เดิมเสมอโดยไม่ต้องล็อกอิน GitHub
       - run: cp build/app/outputs/flutter-apk/app-release.apk build/web/dorm-care.apk
       - uses: actions/upload-artifact@v4
