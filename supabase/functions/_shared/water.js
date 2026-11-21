@@ -1,4 +1,4 @@
-import { waterAlert } from './messages.js';
+import { durationText, waterAlert } from './messages.js';
 import { sha256Hex } from './line.js';
 
 const fail = (status, code, message) => Object.assign(new Error(message), { status, code });
@@ -24,8 +24,8 @@ export async function handleWaterAlert({ roomExists, residents, push, staff, rec
   if (!roomNo) throw fail(400, 'invalid-argument', 'ไม่มีเลขห้อง');
   if (!(await roomExists(roomNo))) throw fail(404, 'not-found', 'ไม่พบห้องนี้');
 
-  const minutes = num(body.minutes ?? 0, 0);
-  const step = Math.max(1, Math.min(PING_MINUTES, Math.round(Number(body.step) || PING_MINUTES)));
+  const minutes = num(body.minutes ?? 0, 1);
+  const step = Math.max(0.5, Math.min(PING_MINUTES, Number(body.step) || PING_MINUTES));
   const flowLpm = num(body.flow_lpm ?? 0, 2);
   const totalL = num(body.total_l ?? 0, 1);
   const test = body.test === true;
@@ -57,7 +57,7 @@ export async function handleWaterAlert({ roomExists, residents, push, staff, rec
     try {
       staffResult = await staff({
         title: `น้ำไหลต่อเนื่องผิดปกติ ห้อง ${roomNo}`,
-        body: `ไหลต่อเนื่อง ${minutes} นาที อัตราไหล ${flowLpm} L/min`,
+        body: `ไหลต่อเนื่อง ${durationText(minutes)} อัตราไหล ${flowLpm} L/min`,
         data: { kind: 'water', room: roomNo },
       });
     } catch (err) {

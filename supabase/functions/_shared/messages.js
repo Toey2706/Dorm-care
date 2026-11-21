@@ -294,20 +294,28 @@ export function image(url) {
   return { type: 'image', originalContentUrl: url, previewImageUrl: url };
 }
 
+export function durationText(minutes) {
+  const total = Math.round(Number(minutes) * 60);
+  const m = Math.floor(total / 60);
+  const sec = total % 60;
+  if (m && sec) return `${m} นาที ${sec} วินาที`;
+  return m ? `${m} นาที` : `${sec} วินาที`;
+}
+
 export function waterAlert({ roomNo, minutes, flowLpm, totalL, timeText, test = false, limit = null }) {
   const title = test ? 'ทดสอบการแจ้งเตือน' : 'น้ำไหลต่อเนื่องผิดปกติ';
   const alt =
     `แจ้งเตือนจากอุปกรณ์วัดน้ำ ห้อง ${roomNo}\n` +
-    `${title} ไหลต่อเนื่อง ${minutes} นาที อัตราไหล ${flowLpm} L/min\n` +
+    `${title} ไหลต่อเนื่อง ${durationText(minutes)} อัตราไหล ${flowLpm} L/min\n` +
     'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจลืมปิดน้ำหรือมีท่อรั่ว';
   const body = [
     row('ห้อง', roomNo),
-    row('ไหลต่อเนื่อง', `${minutes} นาที`),
+    row('ไหลต่อเนื่อง', durationText(minutes)),
     row('อัตราไหล', `${flowLpm} L/min`),
     row('ปริมาณรวม', `${totalL} L`),
     row('เวลา', timeText),
   ];
-  if (limit) body.push(row('ตั้งไว้', `เตือนเมื่อไหลเกิน ${limit} นาที`));
+  if (limit) body.push(row('ตั้งไว้', `เตือนเมื่อไหลเกิน ${durationText(limit)}`));
   body.push({ type: 'text', text: 'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจลืมปิดน้ำหรือมีท่อรั่ว', size: 'sm', color: INK, wrap: true });
   const b = bubble({
     header: header('แจ้งเตือนจากอุปกรณ์วัดน้ำ', title),
@@ -321,9 +329,9 @@ const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m %
 
 export function waterRules(roomNo, rules, defaultMinutes = 10) {
   const lines = rules.length
-    ? rules.map((r) => `${hhmm(r.start_min)}-${hhmm(r.end_min)} เตือนเมื่อไหลเกิน ${r.minutes} นาที`)
+    ? rules.map((r) => `${hhmm(r.start_min)}-${hhmm(r.end_min)} เตือนเมื่อไหลเกิน ${durationText(r.minutes)}`)
     : ['ยังไม่ได้ตั้งช่วงเวลา'];
-  lines.push(`${rules.length ? 'เวลาอื่น' : 'ทั้งวัน'}เตือนเมื่อน้ำไหลต่อเนื่องเกิน ${defaultMinutes} นาที`);
+  lines.push(`${rules.length ? 'เวลาอื่น' : 'ทั้งวัน'}เตือนเมื่อน้ำไหลต่อเนื่องเกิน ${durationText(defaultMinutes)}`);
   const buttons = rules.length
     ? [['ตั้งเวลาแจ้งเตือน', 'primary'], ['ลบช่วงเวลาทั้งหมด', 'secondary']]
     : [['ตั้งเวลาแจ้งเตือน', 'primary']];
@@ -395,7 +403,7 @@ export function askWaterTime(which, startMin = null) {
 
 export function askWaterMinutes(window, choices) {
   const scope = window ? `ช่วง ${hhmm(window.start)}-${hhmm(window.end)}` : 'ทั้งวัน (เวลาอื่นทั้งหมด)';
-  const labels = choices.map((n) => `${n} นาที`);
+  const labels = choices.map(durationText);
   const rows = [];
   for (let i = 0; i < labels.length; i += 3) {
     rows.push({ type: 'box', layout: 'horizontal', spacing: 'sm', contents: labels.slice(i, i + 3).map((l) => button(l, 'secondary')) });
@@ -405,7 +413,7 @@ export function askWaterMinutes(window, choices) {
     header: header('ตั้งเวลาแจ้งเตือน', 'ไหลเกินกี่นาทีจึงเตือน'),
     body: [
       { type: 'text', text: scope, size: 'md', weight: 'bold', color: INK, wrap: true },
-      { type: 'text', text: 'เลือกว่าน้ำไหลต่อเนื่องเกินกี่นาทีจึงแจ้งเตือน หรือพิมพ์ตัวเลขเองได้เลย เช่น 7 หรือ 25 (1 ถึง 180 นาที)', size: 'sm', color: MUTED, wrap: true },
+      { type: 'text', text: 'เลือกว่าน้ำไหลต่อเนื่องนานเท่าไรจึงแจ้งเตือน หรือพิมพ์เองได้ เช่น 7, 1.5 หรือ 90 วินาที (30 วินาที ถึง 180 นาที ทีละ 30 วินาที)', size: 'sm', color: MUTED, wrap: true },
     ],
     footer: rows,
   });

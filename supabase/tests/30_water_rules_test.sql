@@ -22,10 +22,15 @@ do $$ begin if public.water_threshold('A1-01', '2026-11-20 09:30+07') <> 10 then
 do $$ begin if public.line_set_water_default('Uwater1', 20)->>'result' <> 'OK' then raise exception 'set default'; end if; end $$;
 do $$ begin if public.water_threshold('A1-01', '2026-11-20 13:00+07') <> 20 then raise exception 'default used'; end if; end $$;
 do $$ begin perform public.line_add_water_rule('Uwater1', 540, 600, 45); if public.water_threshold('A1-01', '2026-11-20 09:30+07') <> 45 then raise exception 'rule over default'; end if; end $$;
-do $$ begin if (public.line_water_rules('Uwater1')->>'default_minutes')::int <> 20 then raise exception 'default listed'; end if; end $$;
+do $$ begin if (public.line_water_rules('Uwater1')->>'default_minutes')::numeric <> 20 then raise exception 'default listed'; end if; end $$;
 do $$ begin if public.line_set_water_default('Uwater1', 7)->>'result' <> 'OK' then raise exception 'default any minute'; end if; end $$;
 do $$ begin if public.water_threshold('A1-01', '2026-11-20 13:00+07') <> 7 then raise exception 'default any minute used'; end if; end $$;
 do $$ begin if public.line_set_water_default('Uwater1', 181)->>'result' <> 'INVALID' then raise exception 'default range'; end if; end $$;
 do $$ begin if public.line_add_water_rule('Uwater1', 600, 660, 13)->>'result' <> 'OK' then raise exception 'rule any minute'; end if; end $$;
 do $$ begin if public.water_threshold('A1-01', '2026-11-20 10:30+07') <> 13 then raise exception 'rule any minute used'; end if; end $$;
 do $$ begin if public.line_set_water_default('Uwater2', 20)->>'result' <> 'NO_DEVICE' then raise exception 'default no device'; end if; end $$;
+do $$ begin if public.line_set_water_default('Uwater1', 0.5)->>'result' <> 'OK' then raise exception 'half minute default'; end if; end $$;
+do $$ begin if public.water_threshold('A1-01', '2026-11-20 13:00+07') <> 0.5 then raise exception 'half minute used'; end if; end $$;
+do $$ begin if public.line_set_water_default('Uwater1', 0.4)->>'result' <> 'INVALID' or public.line_set_water_default('Uwater1', 1.2)->>'result' <> 'INVALID' then raise exception 'half minute steps'; end if; end $$;
+do $$ begin if public.line_add_water_rule('Uwater1', 700, 720, 1.5)->>'result' <> 'OK' then raise exception 'rule 90 seconds'; end if; end $$;
+do $$ begin if public.water_threshold('A1-01', '2026-11-20 11:45+07') <> 1.5 then raise exception 'rule 90 seconds used'; end if; end $$;

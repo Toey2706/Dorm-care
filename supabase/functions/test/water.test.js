@@ -225,3 +225,12 @@ test('สถานะอุปกรณ์แนบการใช้น้ำ �
   const none = await waterStatus(base);
   assert.equal('usage' in none[0], false);
 });
+
+test('บอร์ดที่ส่งทุก 30 วินาที เตือนตรงเวลาที่ตั้งเป็นวินาที และการ์ดแสดงเป็นวินาที', async () => {
+  for (const [minutes, expectSent] of [[0.5, false], [1, false], [1.5, true], [2, false]]) {
+    const { d, pushed } = deps({ threshold: async () => 1.5 });
+    await handleWaterAlert(d, { room: 'A1-01', minutes, step: 0.5 });
+    assert.equal(pushed.length > 0, expectSent, `minutes ${minutes}`);
+    if (expectSent) assert.match(pushed[0][1][0].altText, /ไหลต่อเนื่อง 1 นาที 30 วินาที/);
+  }
+});

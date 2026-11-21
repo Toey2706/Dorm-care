@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handle, STATE, parseWaterRule } from '../_shared/conversation.js';
+import { handle, STATE, parseWaterRule, parseDuration } from '../_shared/conversation.js';
 
 const active = { status: 'ACTIVE', roomNo: '305' };
 const say = (text) => ({ kind: 'text', text });
@@ -118,4 +118,17 @@ test('ตั้งเวลาแจ้งเตือนแบบกดปุ�
   assert.deepEqual(r.session, { state: STATE.WATER_MINUTES, draft: { allDay: true } });
   r = handle(r.session, active, say('20'));
   assert.deepEqual(r.effects, [{ type: 'addWaterRule', rule: { allDay: true, minutes: 20 } }]);
+});
+
+test('ตั้งเวลาแจ้งเตือนน้ำได้ถึงระดับ 30 วินาที', () => {
+  assert.equal(parseDuration('30 วินาที'), 0.5);
+  assert.equal(parseDuration('90 วินาที'), 1.5);
+  assert.equal(parseDuration('1.5'), 1.5);
+  assert.equal(parseDuration('2 นาที 30 วินาที'), 2.5);
+  assert.equal(parseDuration('7 นาที'), 7);
+  assert.equal(parseDuration('20 วินาที'), null);
+  assert.equal(parseDuration('1.2'), null);
+  assert.equal(parseDuration('181'), null);
+  assert.deepEqual(parseWaterRule('ทั้งวัน 30 วินาที'), { allDay: true, minutes: 0.5 });
+  assert.deepEqual(parseWaterRule('09:00-10:00 1 นาที 30 วินาที'), { start: 540, end: 600, minutes: 1.5 });
 });

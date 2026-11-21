@@ -218,6 +218,14 @@ class WaterDevice {
   }
 }
 
+String durationText(double minutes) {
+  final total = (minutes * 60).round();
+  final m = total ~/ 60;
+  final s = total % 60;
+  if (m > 0 && s > 0) return '$m นาที $s วินาที';
+  return m > 0 ? '$m นาที' : '$s วินาที';
+}
+
 class WaterAlert {
   WaterAlert({
     required this.id,
@@ -234,7 +242,7 @@ class WaterAlert {
 
   final int id;
   final String roomNo;
-  final int minutes;
+  final double minutes;
   final double flowLpm;
   final double totalL;
   final int lineSent;
@@ -248,7 +256,7 @@ class WaterAlert {
   factory WaterAlert.fromJson(Map<String, dynamic> d) => WaterAlert(
         id: (d['id'] as num).toInt(),
         roomNo: (d['room_no'] as String?) ?? '-',
-        minutes: (d['minutes'] as num?)?.toInt() ?? 0,
+        minutes: (d['minutes'] as num?)?.toDouble() ?? 0,
         flowLpm: _toDouble(d['flow_lpm']),
         totalL: _toDouble(d['total_l']),
         lineSent: (d['line_sent'] as num?)?.toInt() ?? 0,

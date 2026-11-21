@@ -342,3 +342,14 @@ test('พิมพ์จำนวนนาทีเองได้ ไม่ต�
   await t.say('25 นาที');
   assert.equal(t.db.s.defaultMinutes, 25);
 });
+
+test('ตั้งแจ้งเตือนน้ำ 30 วินาทีจากปุ่ม แล้วการ์ดแสดงเป็นวินาที', async () => {
+  const t = setup();
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  await t.say('ตั้งเวลาแจ้งเตือน');
+  await t.say('ทั้งวัน');
+  assert.match(t.last(), /ทั้งวัน/);
+  await t.say('30 วินาที');
+  assert.equal(t.db.s.defaultMinutes, 0.5);
+  assert.match(t.last(), /ทั้งวันเตือนเมื่อน้ำไหลต่อเนื่องเกิน 30 วินาที/);
+});

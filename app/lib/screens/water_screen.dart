@@ -240,7 +240,7 @@ class _AlertTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('ห้อง ${a.roomNo} · ไหลต่อเนื่อง ${a.minutes} นาที', style: t.titleMedium),
+                  Text('ห้อง ${a.roomNo} · ไหลต่อเนื่อง ${durationText(a.minutes)}', style: t.titleMedium),
                   Text(
                     [
                       thaiDate(a.createdAt),
