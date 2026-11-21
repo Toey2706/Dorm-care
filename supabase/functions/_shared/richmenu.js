@@ -23,7 +23,7 @@ export const MENUS = {
   },
   [ALIAS.BOUND]: {
     image: 'rm-bound.png',
-    body: { size: { width: W, height: H }, selected: true, name: 'ผูกห้องแล้ว', chatBarText: 'เมนู', areas: areas(['แจ้งซ่อม', 'ติดตามงาน', 'ติดต่อผู้ดูแล']) },
+    body: { size: { width: W, height: H }, selected: true, name: 'ผูกห้องแล้ว', chatBarText: 'เมนู', areas: areas(['แจ้งซ่อม', 'ติดตามงาน', 'ตั้งแจ้งเตือนน้ำ', 'ติดต่อผู้ดูแล']) },
   },
 };
 
