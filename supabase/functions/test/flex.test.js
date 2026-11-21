@@ -66,3 +66,23 @@ test('ยังไม่ผูกห้อง ต้อนรับและเ�
   assert.deepEqual(labels(M.help()), ['ผูกเลขห้อง', 'ติดต่อผู้ดูแล']);
   assert.ok(!labels(M.welcome(true)).includes('ผูกเลขห้อง'));
 });
+
+test('การ์ดน้ำ แจ้งซ่อม และติดตามงานแบบใหม่ ไม่มีข้อความว่าง และปุ่มส่งคำสั่งเดิม', () => {
+  const days = Array.from({ length: 7 }, (_, i) => ({ date: `2026-11-${15 + i}`, l: i === 3 ? 0 : i * 2.5 }));
+  const usage = M.waterUsage('A1-01', { today_l: 15, week_l: 52.5, month_l: 120, at: '2026-11-21T13:00:00Z', days });
+  const chart = JSON.stringify(usage.contents);
+  assert.match(chart, /วันนี้/);
+  assert.equal((chart.match(/"justifyContent":"flex-end"/g) || []).length, 7);
+  const alert = M.waterAlert({ roomNo: 'A1-01', minutes: 1.5, flowLpm: 0.5, totalL: 3.2, timeText: '21 พ.ย. 2569 18:29', limit: 1.5 });
+  assert.deepEqual(alert.contents.footer.contents.map((b) => b.action.text), ['แจ้งซ่อม', 'ตั้งแจ้งเตือนน้ำ']);
+  const list = M.statusList([
+    { ticketNo: 'R1', status: 'REPAIRING', categoryLabel: 'ไฟฟ้า', statusLabel: 'กำลังซ่อม', createdAtText: '-' },
+    { ticketNo: 'R2', status: 'COMPLETED', categoryLabel: 'ประปา', statusLabel: 'ซ่อมเสร็จแล้ว', createdAtText: '-' },
+  ]);
+  assert.equal(list.contents.type, 'carousel');
+  assert.equal(M.statusList([{ ticketNo: 'R1', status: 'PENDING', categoryLabel: 'ไฟฟ้า', statusLabel: 'รอดำเนินการ', createdAtText: '-' }]).contents.type, 'bubble');
+  for (const m of [usage, alert, list, M.waterRules('A1-01', [{ start_min: 540, end_min: 600, minutes: 30 }], 10), M.waterRules('A1-01', [], 0.5), M.ticketCreated('R1', 'A1-01'), M.welcome(), M.welcome(true)]) {
+    assert.ok(texts(m.contents).every((t) => typeof t === 'string' && t.length > 0));
+  }
+  assert.equal(M.waterUsage('A1-01', { today_l: 1, week_l: 1, month_l: 1, at: '2026-11-21T13:00:00Z' }).type, 'flex');
+});

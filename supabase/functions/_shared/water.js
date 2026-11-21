@@ -114,10 +114,21 @@ export function usageWindows(nowMs) {
   return { today, week: today - 6 * DAY_MS, month: today - 29 * DAY_MS, end: nowMs };
 }
 
-export async function waterUsage({ sum, deviceId, nowMs }) {
+export async function waterUsage({ sum, daily = null, deviceId, nowMs }) {
   const w = usageWindows(nowMs);
   const [today_l, week_l, month_l] = await Promise.all([w.today, w.week, w.month].map((start) => sum(deviceId, 'used_l', start, w.end)));
-  return { today_l, week_l, month_l, at: new Date(nowMs).toISOString() };
+  const usage = { today_l, week_l, month_l, at: new Date(nowMs).toISOString() };
+  if (daily) {
+    const points = await daily(deviceId, 'used_l', w.week, w.end).catch(() => null);
+    if (points) {
+      usage.days = Array.from({ length: 7 }, (_, i) => {
+        const start = w.week + i * DAY_MS;
+        const hit = points.filter((p) => p.ts >= start && p.ts < start + DAY_MS).reduce((a, p) => a + p.value, 0);
+        return { date: new Date(start + BKK_MS).toISOString().slice(0, 10), l: Math.round(hit * 10) / 10 };
+      });
+    }
+  }
+  return usage;
 }
 
 export async function waterStatus({ devices, telemetry, sum = null, logger, now = () => new Date() }) {

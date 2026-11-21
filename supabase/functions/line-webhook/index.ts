@@ -24,7 +24,7 @@ const webhook = createWebhook({
     const { data, error } = await db.from('water_devices').select('tb_device_id').eq('room_no', roomNo).eq('active', true).maybeSingle();
     if (error) throw error;
     if (!data?.tb_device_id) return null;
-    return usageFor({ sum: tb.sum, deviceId: data.tb_device_id, nowMs: Date.now() });
+    return usageFor({ sum: tb.sum, daily: tb.daily, deviceId: data.tb_device_id, nowMs: Date.now() });
   },
   richMenu: {
     async toBound(userId: string) {

@@ -9,8 +9,12 @@ const quickReply = (labels) => ({
 
 // สีเดียวกับแอปพนักงาน (app/lib/theme.dart) ผู้พักเห็นสถานะสีเดียวกับที่ผู้ดูแลเห็น
 const BRAND = '#1E4E8C';
+const BRAND_LIGHT = '#2F6DB5';
+const TINT = '#EAF1FA';
+const LINE_GRAY = '#E3E8EF';
 const INK = '#1B2333';
 const MUTED = '#5B6577';
+const WARN = { bg: '#FEF3C7', fg: '#8A3B07' };
 const STATUS = {
   PENDING: { bg: '#FEF3C7', fg: '#8A3B07' },
   REPAIRING: { bg: '#DBEAFE', fg: '#1E3A8A' },
@@ -28,15 +32,85 @@ const bubble = ({ header: head, body, footer }) => {
   return b;
 };
 
-const header = (title, subtitle) => ({
+const stepBar = (done, total, color, rest) => ({
+  type: 'box',
+  layout: 'horizontal',
+  spacing: 'xs',
+  margin: 'md',
+  contents: Array.from({ length: total }, (_, i) => ({
+    type: 'box',
+    layout: 'vertical',
+    height: '6px',
+    cornerRadius: '3px',
+    backgroundColor: i < done ? color : rest,
+    contents: [],
+  })),
+});
+
+const header = (title, subtitle, step = null) => ({
   type: 'box',
   layout: 'vertical',
-  backgroundColor: BRAND,
   paddingAll: '16px',
+  background: { type: 'linearGradient', angle: '135deg', startColor: BRAND, endColor: BRAND_LIGHT },
   contents: [
-    { type: 'text', text: title, color: '#FFFFFFD9', size: 'sm' },
-    { type: 'text', text: subtitle, color: '#FFFFFF', size: 'xl', weight: 'bold' },
+    { type: 'text', text: title, color: '#FFFFFFCC', size: 'xs', weight: 'bold' },
+    { type: 'text', text: subtitle, color: '#FFFFFF', size: 'xl', weight: 'bold', wrap: true, margin: 'xs' },
+    ...(step ? [stepBar(step.n, step.of, '#FFFFFF', '#FFFFFF4D')] : []),
   ],
+});
+
+const STEPS = [
+  ['PENDING', 'รับเรื่อง'],
+  ['REPAIRING', 'กำลังซ่อม'],
+  ['COMPLETED', 'ซ่อมเสร็จ'],
+];
+
+const progress = (status) => {
+  const at = Math.max(0, STEPS.findIndex(([code]) => code === status));
+  return {
+    type: 'box',
+    layout: 'vertical',
+    spacing: 'sm',
+    margin: 'md',
+    contents: [
+      stepBar(at + 1, STEPS.length, BRAND, LINE_GRAY),
+      {
+        type: 'box',
+        layout: 'horizontal',
+        contents: STEPS.map(([, label], i) => ({
+          type: 'text',
+          text: label,
+          size: 'xxs',
+          align: i === 0 ? 'start' : i === STEPS.length - 1 ? 'end' : 'center',
+          color: i === at ? BRAND : i < at ? INK : MUTED,
+          weight: i === at ? 'bold' : 'regular',
+        })),
+      },
+    ],
+  };
+};
+
+const tile = (label, value, flexValue = 1) => ({
+  type: 'box',
+  layout: 'vertical',
+  flex: flexValue,
+  backgroundColor: TINT,
+  cornerRadius: '12px',
+  paddingAll: '10px',
+  contents: [
+    { type: 'text', text: label, size: 'xxs', color: MUTED },
+    { type: 'text', text: value, size: 'md', weight: 'bold', color: INK, wrap: true },
+  ],
+});
+
+const note = (value, style = WARN) => ({
+  type: 'box',
+  layout: 'vertical',
+  backgroundColor: style.bg,
+  cornerRadius: '10px',
+  paddingAll: '10px',
+  margin: 'md',
+  contents: [{ type: 'text', text: value, size: 'xs', color: style.fg, wrap: true }],
 });
 
 const row = (label, value) => ({
@@ -66,21 +140,45 @@ const badge = (style, label) => ({
 const badgeLine = (style, label) => ({ type: 'box', layout: 'horizontal', contents: [badge(style, label), { type: 'filler' }] });
 
 // ปุ่มส่งข้อความเดียวกับที่ผู้พักพิมพ์เอง บทสนทนาจึงทำงานเหมือนเดิมไม่ต้องแก้ส่วนจัดการสถานะ
-const button = (label, style) => ({
+const button = (label, style, sendText = label) => ({
   type: 'button',
   style,
   height: 'sm',
   color: style === 'primary' ? BRAND : undefined,
-  action: { type: 'message', label, text: label },
+  action: { type: 'message', label, text: sendText },
 });
 
 /**
  * การ์ดคำถามแต่ละขั้น ปุ่มในการ์ดกับ quick reply ส่งข้อความเดียวกัน
  * LINE คอมพิวเตอร์ไม่แสดง quick reply ผู้ใช้บนคอมจึงกดปุ่มในการ์ดแทนได้
  */
-function card(alt, { title, subtitle, lines = [], buttons }) {
-  const body = lines.map((l) => ({ type: 'text', text: l, size: 'sm', color: INK, wrap: true }));
-  const b = bubble({ header: header(title, subtitle), body: body.length ? body : [{ type: 'filler' }], footer: buttons.map(([l, st]) => button(l, st)) });
+const numbered = (items) => ({
+  type: 'box',
+  layout: 'vertical',
+  spacing: 'md',
+  contents: items.map((value, i) => ({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'md',
+    contents: [
+      {
+        type: 'box',
+        layout: 'vertical',
+        width: '22px',
+        height: '22px',
+        cornerRadius: '11px',
+        backgroundColor: BRAND,
+        justifyContent: 'center',
+        contents: [{ type: 'text', text: String(i + 1), size: 'xs', color: '#FFFFFF', weight: 'bold', align: 'center' }],
+      },
+      { type: 'text', text: value, size: 'sm', color: INK, wrap: true, flex: 1, gravity: 'center' },
+    ],
+  })),
+});
+
+function card(alt, { title, subtitle, lines = [], extra = [], buttons, step = null }) {
+  const body = [...lines.map((l) => ({ type: 'text', text: l, size: 'sm', color: INK, wrap: true })), ...extra];
+  const b = bubble({ header: header(title, subtitle, step), body: body.length ? body : [{ type: 'filler' }], footer: buttons.map(([l, st]) => button(l, st)) });
   if (!body.length) delete b.body;
   return { ...flex(alt, b), quickReply: quickReply(buttons.map(([l]) => l)) };
 }
@@ -95,14 +193,21 @@ export function welcome(bound = false) {
     return card(alt, {
       title: 'ยินดีต้อนรับ',
       subtitle: 'ระบบแจ้งซ่อมหอพัก',
-      lines: ['เริ่มใช้งานโดยกด "ผูกเลขห้อง" แล้วพิมพ์รหัส 6 หลักที่ได้รับจากผู้ดูแล', 'ยังไม่มีรหัส กด "ติดต่อผู้ดูแล"'],
+      extra: [
+        { type: 'text', text: 'เริ่มใช้งานใน 2 ขั้น', size: 'sm', weight: 'bold', color: BRAND },
+        numbered(['ขอรหัส 6 หลักจากผู้ดูแลหอพัก', 'กด "ผูกเลขห้อง" แล้วพิมพ์รหัสลงในแชต']),
+        note('ผูกห้องแล้วแจ้งซ่อม ติดตามงาน และรับแจ้งผลการซ่อมผ่าน LINE ได้ทันที', { bg: TINT, fg: BRAND }),
+      ],
       buttons: [['ผูกเลขห้อง', 'primary'], ['ติดต่อผู้ดูแล', 'secondary']],
     });
   }
   return card('ยินดีต้อนรับกลับสู่ระบบแจ้งซ่อมหอพัก\nกด "แจ้งซ่อม" เพื่อแจ้งปัญหา หรือ "ติดตามงาน" เพื่อดูสถานะ', {
     title: 'ยินดีต้อนรับกลับ',
     subtitle: 'ระบบแจ้งซ่อมหอพัก',
-    lines: ['บัญชีนี้ผูกห้องไว้แล้ว แจ้งซ่อมหรือติดตามงานได้เลย'],
+    extra: [
+      { type: 'text', text: 'บัญชีนี้ผูกห้องไว้แล้ว ใช้เมนูด้านล่างได้เลย', size: 'sm', color: INK, wrap: true },
+      numbered(['"แจ้งซ่อม" เลือกหมวด พิมพ์อาการ แนบรูปได้', '"ติดตามงาน" ดูว่างานถึงขั้นไหนแล้ว', 'ซ่อมเสร็จ ระบบแจ้งผลกลับมาทางแชตนี้']),
+    ],
     buttons: [['แจ้งซ่อม', 'primary'], ['ติดตามงาน', 'secondary'], ['ติดต่อผู้ดูแล', 'secondary']],
   });
 }
@@ -127,6 +232,7 @@ export function askCategory(categories) {
   return card('เลือกหมวดปัญหา', {
     title: 'แจ้งซ่อม ขั้นที่ 1 จาก 4',
     subtitle: 'เลือกหมวดปัญหา',
+    step: { n: 1, of: 4 },
     buttons: [...categories.map((c) => [c.label, 'secondary']), ['ยกเลิก', 'link']],
   });
 }
@@ -135,6 +241,7 @@ export function askDetail() {
   return card('กรุณาพิมพ์รายละเอียดปัญหา เช่น ตำแหน่งและอาการที่พบ\n(พิมพ์ "ยกเลิก" เพื่อยกเลิก)', {
     title: 'แจ้งซ่อม ขั้นที่ 2 จาก 4',
     subtitle: 'พิมพ์รายละเอียดปัญหา',
+    step: { n: 2, of: 4 },
     lines: ['พิมพ์ลงในช่องแชต บอกตำแหน่งและอาการที่พบ เช่น ก๊อกอ่างล้างหน้ารั่ว น้ำหยดตลอด'],
     buttons: [['ยกเลิก', 'link']],
   });
@@ -144,6 +251,7 @@ export function askPhoto(max) {
   return card(`ส่งรูปประกอบได้สูงสุด ${max} รูป หรือกด "ข้าม" ถ้าไม่มีรูป`, {
     title: 'แจ้งซ่อม ขั้นที่ 3 จาก 4',
     subtitle: 'ส่งรูปประกอบ',
+    step: { n: 3, of: 4 },
     lines: [`ส่งรูปได้สูงสุด ${max} รูป ถ้าไม่มีรูปกด "ข้าม"`],
     buttons: [['ข้าม', 'secondary'], ['ยกเลิก', 'link']],
   });
@@ -153,6 +261,7 @@ export function photoReceived(count, max) {
   return card(`ได้รับรูปแล้ว ${count}/${max} รูป ส่งเพิ่มได้ หรือกด "เสร็จ"`, {
     title: 'แจ้งซ่อม ขั้นที่ 3 จาก 4',
     subtitle: `ได้รับรูปแล้ว ${count}/${max}`,
+    step: { n: 3, of: 4 },
     lines: ['ส่งรูปเพิ่มได้ หรือกด "เสร็จ" เพื่อไปขั้นถัดไป'],
     buttons: [['เสร็จ', 'primary'], ['ยกเลิก', 'link']],
   });
@@ -169,7 +278,7 @@ export function confirmReport(draft, categories) {
     `รูปภาพ: ${photos} รูป\n\n` +
     'กด "ยืนยัน" เพื่อส่งแจ้งซ่อม';
   const card = bubble({
-    header: header('แจ้งซ่อม ขั้นที่ 4 จาก 4', 'ตรวจสอบก่อนส่ง'),
+    header: header('แจ้งซ่อม ขั้นที่ 4 จาก 4', 'ตรวจสอบก่อนส่ง', { n: 4, of: 4 }),
     body: [row('หมวด', categoryText), row('รายละเอียด', draft.description), row('รูปภาพ', `${photos} รูป`)],
     footer: [button('ยืนยัน', 'primary'), button('ยกเลิก', 'link')],
   });
@@ -188,8 +297,8 @@ export function ticketCreated(ticketNo, roomNo, details = {}) {
     alt,
     bubble({
       header: header('รับแจ้งซ่อมแล้ว', ticketNo),
-      body: [badgeLine(STATUS.PENDING, 'รอดำเนินการ'), ...rows],
-      footer: [button('ติดตามงาน', 'secondary')],
+      body: [badgeLine(STATUS.PENDING, 'รอดำเนินการ'), ...rows, progress('PENDING'), note('ผู้ดูแลจะมอบหมายช่างให้ และแจ้งผลทาง LINE เมื่อซ่อมเสร็จ', { bg: TINT, fg: BRAND })],
+      footer: [button('ดูสถานะงานซ่อม', 'secondary', 'ติดตามงาน')],
     })
   );
 }
@@ -207,14 +316,14 @@ export function statusList(rows) {
   if (rows.length === 0) return text('ยังไม่มีรายการแจ้งซ่อมของห้องนี้');
   const lines = rows.map((r) => `• ${r.ticketNo} ${r.categoryLabel}\n  ${r.statusLabel} · แจ้งเมื่อ ${r.createdAtText}`);
   const alt = `รายการแจ้งซ่อมล่าสุดของห้อง\n\n${lines.join('\n')}`;
-  const items = [];
-  rows.forEach((r, i) => {
-    if (i > 0) items.push({ type: 'separator', margin: 'lg', color: '#E3E8EF' });
-    items.push({
+  const bubbles = rows.map((r) => ({
+    type: 'bubble',
+    size: 'kilo',
+    body: {
       type: 'box',
       layout: 'vertical',
-      spacing: 'xs',
-      margin: i > 0 ? 'lg' : 'none',
+      spacing: 'sm',
+      paddingAll: '16px',
       contents: [
         {
           type: 'box',
@@ -224,12 +333,13 @@ export function statusList(rows) {
             badge(STATUS[r.status] || STATUS.PENDING, r.statusLabel),
           ],
         },
-        { type: 'text', text: r.categoryLabel, size: 'sm', color: INK, wrap: true },
-        { type: 'text', text: `แจ้งเมื่อ ${r.createdAtText}`, size: 'xs', color: MUTED },
+        { type: 'text', text: r.categoryLabel, size: 'lg', weight: 'bold', color: BRAND, wrap: true, margin: 'md' },
+        { type: 'text', text: `แจ้งเมื่อ ${r.createdAtText}`, size: 'xs', color: MUTED, wrap: true },
+        progress(r.status),
       ],
-    });
-  });
-  return flex(alt, bubble({ header: header('รายการแจ้งซ่อมล่าสุด', 'ของห้องคุณ'), body: items }));
+    },
+  }));
+  return flex(alt, bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles });
 }
 
 export function contact(info) {
@@ -240,7 +350,7 @@ export function bindingDone(roomNo) {
   return card(`ผูกบัญชีกับห้อง ${roomNo} เรียบร้อยแล้ว กด "แจ้งซ่อม" เพื่อแจ้งปัญหาได้เลย`, {
     title: 'ผูกเลขห้องเรียบร้อย',
     subtitle: `ห้อง ${roomNo}`,
-    lines: ['กด "แจ้งซ่อม" เพื่อแจ้งปัญหาได้เลย'],
+    lines: ['เมนูด้านล่างเปลี่ยนเป็นเมนูของห้องแล้ว กด "แจ้งซ่อม" เพื่อแจ้งปัญหาได้เลย'],
     buttons: [['แจ้งซ่อม', 'primary'], ['ติดตามงาน', 'secondary']],
   });
 }
@@ -271,6 +381,7 @@ export function repairResult(ticket, categoryLabel, heroUrl) {
     row('ห้อง', ticket.roomNo),
     row('หมวด', categoryLabel),
     row('ผลการซ่อม', ticket.repairResult || '-'),
+    progress('COMPLETED'),
   ];
   if (ticket.photoCount) {
     body.push({
@@ -309,23 +420,41 @@ export function waterAlert({ roomNo, minutes, flowLpm, totalL, timeText, test = 
     `${title} ไหลต่อเนื่อง ${durationText(minutes)} อัตราไหล ${flowLpm} L/min\n` +
     'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจลืมปิดน้ำหรือมีท่อรั่ว';
   const body = [
-    row('ห้อง', roomNo),
-    row('ไหลต่อเนื่อง', durationText(minutes)),
-    row('อัตราไหล', `${flowLpm} L/min`),
-    row('ปริมาณรวม', `${totalL} L`),
-    row('เวลา', timeText),
+    { type: 'text', text: `ห้อง ${roomNo} · ${timeText}`, size: 'xs', color: MUTED, wrap: true },
+    { type: 'text', text: 'น้ำไหลต่อเนื่องมาแล้ว', size: 'sm', color: INK, margin: 'md' },
+    { type: 'text', text: durationText(minutes), size: '3xl', weight: 'bold', color: BRAND, wrap: true },
+    {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      margin: 'md',
+      contents: [tile('อัตราไหล', `${flowLpm} L/min`), tile('ปริมาณรวม', `${totalL} L`)],
+    },
   ];
-  if (limit) body.push(row('ตั้งไว้', `เตือนเมื่อไหลเกิน ${durationText(limit)}`));
-  body.push({ type: 'text', text: 'ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจลืมปิดน้ำหรือมีท่อรั่ว', size: 'sm', color: INK, wrap: true });
+  if (limit) body.push({ type: 'text', text: `ตั้งไว้ให้เตือนเมื่อไหลเกิน ${durationText(limit)}`, size: 'xs', color: MUTED, wrap: true, margin: 'md' });
+  body.push(note('ถ้าไม่ได้เปิดน้ำใช้อยู่ อาจลืมปิดน้ำหรือมีท่อรั่ว ลองตรวจก๊อกและชักโครกในห้อง'));
   const b = bubble({
     header: header('แจ้งเตือนจากอุปกรณ์วัดน้ำ', title),
     body,
-    footer: [button('แจ้งซ่อม', 'primary'), button('ตั้งแจ้งเตือนน้ำ', 'secondary')],
+    footer: [button('แจ้งซ่อมท่อหรือก๊อกรั่ว', 'primary', 'แจ้งซ่อม'), button('ปรับเวลาแจ้งเตือน', 'secondary', 'ตั้งแจ้งเตือนน้ำ')],
   });
   return { ...flex(alt, b), quickReply: quickReply(['แจ้งซ่อม', 'ตั้งแจ้งเตือนน้ำ', 'ติดต่อผู้ดูแล']) };
 }
 
 const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+const ruleRow = (when, value) => ({
+  type: 'box',
+  layout: 'horizontal',
+  spacing: 'md',
+  backgroundColor: TINT,
+  cornerRadius: '12px',
+  paddingAll: '12px',
+  contents: [
+    { type: 'text', text: when, size: 'sm', weight: 'bold', color: INK, flex: 3, wrap: true, gravity: 'center' },
+    { type: 'text', text: value, size: 'sm', color: BRAND, weight: 'bold', align: 'end', flex: 3, wrap: true, gravity: 'center' },
+  ],
+});
 
 export function waterRules(roomNo, rules, defaultMinutes = 10) {
   const lines = rules.length
@@ -335,10 +464,48 @@ export function waterRules(roomNo, rules, defaultMinutes = 10) {
   const buttons = rules.length
     ? [['ตั้งเวลาแจ้งเตือน', 'primary'], ['ลบช่วงเวลาทั้งหมด', 'secondary']]
     : [['ตั้งเวลาแจ้งเตือน', 'primary']];
-  return card(`ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}\n${lines.join('\n')}`, { title: `ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}`, subtitle: 'ช่วงเวลาที่ตั้งไว้', lines, buttons });
+  const extra = [
+    { type: 'text', text: 'เตือนเมื่อน้ำไหลต่อเนื่องนานเกิน', size: 'xs', color: MUTED },
+    ...rules.map((r) => ruleRow(`${hhmm(r.start_min)}-${hhmm(r.end_min)} น.`, durationText(r.minutes))),
+    ruleRow(rules.length ? 'เวลาอื่น' : 'ทั้งวัน', durationText(defaultMinutes)),
+  ];
+  if (!rules.length) extra.push({ type: 'text', text: 'ตั้งเพิ่มเฉพาะช่วงได้ เช่น ช่วงอาบน้ำ 09:00-10:00 ให้นานขึ้น', size: 'xs', color: MUTED, wrap: true });
+  return card(`ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}\n${lines.join('\n')}`, { title: `ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}`, subtitle: 'เวลาที่ตั้งไว้', extra, buttons });
 }
 
 const liters = (v) => `${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ลิตร`;
+
+const DAY_NAMES = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+
+function usageChart(days) {
+  const max = Math.max(...days.map((d) => d.l), 0.1);
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'lg',
+    contents: days.map((d, i) => {
+      const last = i === days.length - 1;
+      const h = Math.max(4, Math.round((d.l / max) * 72));
+      return {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'xs',
+        contents: [
+          { type: 'text', text: d.l ? String(d.l >= 100 ? Math.round(d.l) : d.l) : '0', size: 'xxs', color: last ? BRAND : MUTED, align: 'center', weight: last ? 'bold' : 'regular' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            height: '72px',
+            justifyContent: 'flex-end',
+            contents: [{ type: 'box', layout: 'vertical', height: `${h}px`, cornerRadius: '4px', backgroundColor: last ? BRAND : '#B9CDE6', contents: [] }],
+          },
+          { type: 'text', text: last ? 'วันนี้' : DAY_NAMES[new Date(`${d.date}T12:00:00Z`).getUTCDay()], size: 'xxs', color: last ? BRAND : MUTED, align: 'center', weight: last ? 'bold' : 'regular' },
+        ],
+      };
+    }),
+  };
+}
 
 export function waterUsage(roomNo, usage) {
   const at = new Date(usage.at).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' });
@@ -348,23 +515,29 @@ export function waterUsage(roomNo, usage) {
     ['30 วัน', usage.month_l],
   ];
   const alt = `การใช้น้ำ ห้อง ${roomNo} (ถึง ${at} น.)\n${items.map(([l, v]) => `${l} ${liters(v)}`).join('\n')}`;
-  const line = ([label, value]) => ({
+  const body = [
+    { type: 'text', text: `วันนี้ ตั้งแต่เที่ยงคืนถึง ${at} น.`, size: 'xs', color: MUTED },
+    {
+      type: 'box',
+      layout: 'baseline',
+      spacing: 'sm',
+      contents: [
+        { type: 'text', text: Number(usage.today_l || 0).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), size: '3xl', weight: 'bold', color: BRAND, flex: 0 },
+        { type: 'text', text: 'ลิตร', size: 'md', color: MUTED, flex: 0 },
+      ],
+    },
+  ];
+  if (Array.isArray(usage.days) && usage.days.length) body.push(usageChart(usage.days));
+  body.push({
     type: 'box',
     layout: 'horizontal',
-    contents: [
-      { type: 'text', text: label, size: 'md', color: MUTED, flex: 2 },
-      { type: 'text', text: liters(value), size: 'md', color: INK, weight: 'bold', align: 'end', flex: 3 },
-    ],
+    spacing: 'sm',
+    margin: 'lg',
+    contents: [tile('7 วันล่าสุด', liters(usage.week_l)), tile('30 วันล่าสุด', liters(usage.month_l))],
   });
-  const b = bubble({
-    header: header(`การใช้น้ำ ห้อง ${roomNo}`, liters(usage.today_l)),
-    body: [
-      { type: 'text', text: `วันนี้ตั้งแต่เที่ยงคืนถึง ${at} น.`, size: 'xs', color: MUTED },
-      ...items.map(line),
-      { type: 'text', text: '7 วันและ 30 วันนับรวมวันนี้', size: 'xs', color: MUTED, wrap: true },
-    ],
-  });
-  return { ...flex(alt, b), quickReply: quickReply(['ดูการใช้น้ำ', 'ตั้งเวลาแจ้งเตือน']) };
+  body.push({ type: 'text', text: '7 วันและ 30 วันนับรวมวันนี้', size: 'xxs', color: MUTED, wrap: true });
+  const b = bubble({ header: header(`การใช้น้ำ ห้อง ${roomNo}`, 'ปริมาณน้ำที่ใช้'), body });
+  return { ...flex(alt, b), quickReply: quickReply(['ดูการใช้น้ำ', 'ตั้งแจ้งเตือนน้ำ']) };
 }
 
 export function askWaterMode() {

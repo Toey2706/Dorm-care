@@ -234,3 +234,14 @@ test('บอร์ดที่ส่งทุก 30 วินาที เตื
     if (expectSent) assert.match(pushed[0][1][0].altText, /ไหลต่อเนื่อง 1 นาที 30 วินาที/);
   }
 });
+
+test('แยกการใช้น้ำรายวัน 7 วันตามเวลาไทย', async () => {
+  const now = Date.parse('2026-11-21T10:20:00Z');
+  const w = usageWindows(now);
+  const daily = async () => [{ ts: w.week + 43_200_000, value: 2 }, { ts: w.today + 3_600_000, value: 5.5 }];
+  const u = await waterUsage({ sum: async () => 1, daily, deviceId: 'd', nowMs: now });
+  assert.equal(u.days.length, 7);
+  assert.deepEqual(u.days[0], { date: '2026-11-15', l: 2 });
+  assert.deepEqual(u.days[6], { date: '2026-11-21', l: 5.5 });
+  assert.equal(u.days[3].l, 0);
+});

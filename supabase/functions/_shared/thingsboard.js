@@ -35,5 +35,10 @@ export function thingsboard({ base = 'https://thingsboard.cloud', publicId, fetc
     return Math.round(total * 10) / 10;
   }
 
-  return { telemetry, sum };
+  async function daily(deviceId, key, startTs, endTs) {
+    const data = await get(`${series(deviceId)}?keys=${key}&startTs=${startTs}&endTs=${endTs}&agg=SUM&interval=86400000&limit=100`);
+    return (data[key] || []).map((p) => ({ ts: Number(p.ts), value: Math.round((Number(p.value) || 0) * 10) / 10 }));
+  }
+
+  return { telemetry, sum, daily };
 }
