@@ -50,8 +50,14 @@ function fakeDb() {
       if (!b) return null;
       return { room_no: b.room_no, has_device: b.room_no === '305', default_minutes: s.defaultMinutes || 10, rules: s.rules || [] };
     },
+    line_delete_water_rule: ({ p_rule_id }) => {
+      const before = (s.rules || []).length;
+      s.rules = (s.rules || []).filter((r) => r.id !== p_rule_id);
+      return before - s.rules.length;
+    },
     line_add_water_rule: ({ p_start, p_end, p_minutes }) => {
-      s.rules = [...(s.rules || []), { start_min: p_start, end_min: p_end, minutes: p_minutes }];
+      s.nextRuleId = (s.nextRuleId || 0) + 1;
+      s.rules = [...(s.rules || []), { id: s.nextRuleId, start_min: p_start, end_min: p_end, minutes: p_minutes }];
       return { result: 'OK' };
     },
     line_set_water_default: ({ p_minutes }) => { s.defaultMinutes = p_minutes; return { result: 'OK' }; },
@@ -255,7 +261,7 @@ test('ผู้พักตั้งช่วงเวลาแจ้งเต�
   await t.say('ตั้งเวลาแจ้งเตือน');
   assert.equal(t.db.s.sessions.U1.state, 'WATER_RULE');
   await t.say('9.00-10.00 30');
-  assert.deepEqual(t.db.s.rules, [{ start_min: 540, end_min: 600, minutes: 30 }]);
+  assert.deepEqual(t.db.s.rules.map(({ id, ...r }) => r), [{ start_min: 540, end_min: 600, minutes: 30 }]);
   assert.match(t.last(), /09:00-10:00 เตือนเมื่อไหลเกิน 30 นาที/);
   assert.equal(t.db.s.sessions.U1.state, 'IDLE');
   await t.say('ลบช่วงเวลาทั้งหมด');
@@ -291,7 +297,7 @@ test('เลือกเวลาจากปุ่มเลือกเวล�
   await pick('water:end', '10:00');
   assert.match(t.last(), /09:00-10:00 น้ำไหลเกินกี่นาที/);
   await t.say('45 นาที');
-  assert.deepEqual(t.db.s.rules, [{ start_min: 540, end_min: 600, minutes: 45 }]);
+  assert.deepEqual(t.db.s.rules.map(({ id, ...r }) => r), [{ start_min: 540, end_min: 600, minutes: 45 }]);
   assert.equal(t.db.s.sessions.U1.state, 'IDLE');
 });
 
@@ -336,7 +342,7 @@ test('พิมพ์จำนวนนาทีเองได้ ไม่ต�
   await pick('water:end', '10:00');
   assert.match(t.last(), /พิมพ์ตัวเลขเองได้|น้ำไหลเกินกี่นาที/);
   await t.say('7');
-  assert.deepEqual(t.db.s.rules, [{ start_min: 540, end_min: 600, minutes: 7 }]);
+  assert.deepEqual(t.db.s.rules.map(({ id, ...r }) => r), [{ start_min: 540, end_min: 600, minutes: 7 }]);
   await t.say('ตั้งเวลาแจ้งเตือน');
   await t.say('ทั้งวัน');
   await t.say('25 นาที');
@@ -371,5 +377,22 @@ test('เลือกระยะเวลาแจ้งเตือนจา�
   await pick('water:dur', '04:00');
   assert.match(t.line.replies.slice(-2).join('\n'), /00:01 ถึง 03:00/);
   await pick('water:dur', '00:20');
-  assert.deepEqual(t.db.s.rules, [{ start_min: 540, end_min: 600, minutes: 20 }]);
+  assert.deepEqual(t.db.s.rules.map(({ id, ...r }) => r), [{ start_min: 540, end_min: 600, minutes: 20 }]);
+});
+
+test('ลบช่วงเวลาแจ้งเตือนน้ำทีละช่วงจากปุ่มลบในการ์ด', async () => {
+  const t = setup();
+  t.db.s.bindings.U1 = { status: 'ACTIVE', room_no: '305', display_name: '' };
+  await t.say('ตั้งเวลาแจ้งเตือน');
+  await t.say('09:00-10:00 30');
+  await t.say('ตั้งเวลาแจ้งเตือน');
+  await t.say('21:00-22:00 15');
+  assert.equal(t.db.s.rules.length, 2);
+  let k = 0;
+  const del = (id) => t.hook.handleAll(t.line.client, [{ type: 'postback', webhookEventId: `d${++k}`, replyToken: `td${k}`, timestamp: 1000, source: { type: 'user', userId: 'U1' }, postback: { data: `water:del:${id}` } }]);
+  await del(1);
+  assert.deepEqual(t.db.s.rules.map((r) => r.start_min), [1260]);
+  assert.match(t.line.replies.slice(-2).join('\n'), /ลบช่วงเวลานี้แล้ว[\s\S]*21:00-22:00/);
+  await del(1);
+  assert.match(t.line.replies.slice(-2).join('\n'), /ถูกลบไปแล้ว/);
 });

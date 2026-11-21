@@ -217,6 +217,12 @@ export function handle(session, binding, event) {
     return { session: idle(), effects: [reply(M.text(wasBusy ? 'ยกเลิกรายการแล้ว' : 'ไม่มีรายการที่ต้องยกเลิก'))] };
   }
 
+  const del = event.kind === 'postback' ? /^water:del:(\d+)$/.exec(String(event.data || '')) : null;
+  if (del) {
+    if (!isBound(binding)) return { session: idle(), effects: [reply(M.text('ยังไม่ได้ผูกห้อง กด "ผูกเลขห้อง" ก่อน'))] };
+    return { session: idle(), effects: [{ type: 'deleteWaterRule', id: Number(del[1]) }] };
+  }
+
   // ปุ่ม Rich Menu ขัดจังหวะได้ทุกขั้น
   if (text !== null) {
     const commandResult = handleCommand(text, binding, event.at || 0);

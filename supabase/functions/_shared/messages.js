@@ -443,7 +443,24 @@ export function waterAlert({ roomNo, minutes, flowLpm, totalL, timeText, test = 
 
 const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-const ruleRow = (when, value) => ({
+const deleteChip = (id, when) => ({
+  type: 'box',
+  layout: 'vertical',
+  flex: 0,
+  justifyContent: 'center',
+  backgroundColor: '#FFFFFF',
+  borderColor: '#D5DBE5',
+  borderWidth: '1px',
+  cornerRadius: '14px',
+  paddingStart: '10px',
+  paddingEnd: '10px',
+  paddingTop: '4px',
+  paddingBottom: '4px',
+  action: { type: 'postback', label: 'ลบ', data: `water:del:${id}`, displayText: `ลบช่วงเวลา ${when}` },
+  contents: [{ type: 'text', text: 'ลบ', size: 'xs', color: '#B42318', weight: 'bold' }],
+});
+
+const ruleRow = (when, value, id = null) => ({
   type: 'box',
   layout: 'horizontal',
   spacing: 'md',
@@ -451,8 +468,9 @@ const ruleRow = (when, value) => ({
   cornerRadius: '12px',
   paddingAll: '12px',
   contents: [
-    { type: 'text', text: when, size: 'sm', weight: 'bold', color: INK, flex: 3, wrap: true, gravity: 'center' },
+    { type: 'text', text: when, size: 'sm', weight: 'bold', color: INK, flex: 4, wrap: true, gravity: 'center' },
     { type: 'text', text: value, size: 'sm', color: BRAND, weight: 'bold', align: 'end', flex: 3, wrap: true, gravity: 'center' },
+    ...(id ? [deleteChip(id, when)] : []),
   ],
 });
 
@@ -466,10 +484,11 @@ export function waterRules(roomNo, rules, defaultMinutes = 10) {
     : [['ตั้งเวลาแจ้งเตือน', 'primary']];
   const extra = [
     { type: 'text', text: 'เตือนเมื่อน้ำไหลต่อเนื่องนานเกิน', size: 'xs', color: MUTED },
-    ...rules.map((r) => ruleRow(`${hhmm(r.start_min)}-${hhmm(r.end_min)} น.`, durationText(r.minutes))),
+    ...rules.map((r) => ruleRow(`${hhmm(r.start_min)}-${hhmm(r.end_min)}`, durationText(r.minutes), r.id)),
     ruleRow(rules.length ? 'เวลาอื่น' : 'ทั้งวัน', durationText(defaultMinutes)),
   ];
   if (!rules.length) extra.push({ type: 'text', text: 'ตั้งเพิ่มเฉพาะช่วงได้ เช่น ช่วงอาบน้ำ 09:00-10:00 ให้นานขึ้น', size: 'xs', color: MUTED, wrap: true });
+  else extra.push({ type: 'text', text: 'กด "ลบ" ท้ายช่วงที่ไม่ใช้แล้ว', size: 'xs', color: MUTED, wrap: true });
   return card(`ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}\n${lines.join('\n')}`, { title: `ตั้งแจ้งเตือนน้ำ ห้อง ${roomNo}`, subtitle: 'เวลาที่ตั้งไว้', extra, buttons });
 }
 

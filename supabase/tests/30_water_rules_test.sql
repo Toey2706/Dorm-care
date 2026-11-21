@@ -34,3 +34,10 @@ do $$ begin if public.water_threshold('A1-01', '2026-11-20 13:00+07') <> 0.5 the
 do $$ begin if public.line_set_water_default('Uwater1', 0.4)->>'result' <> 'INVALID' or public.line_set_water_default('Uwater1', 1.2)->>'result' <> 'INVALID' then raise exception 'half minute steps'; end if; end $$;
 do $$ begin if public.line_add_water_rule('Uwater1', 700, 720, 1.5)->>'result' <> 'OK' then raise exception 'rule 90 seconds'; end if; end $$;
 do $$ begin if public.water_threshold('A1-01', '2026-11-20 11:45+07') <> 1.5 then raise exception 'rule 90 seconds used'; end if; end $$;
+do $$ declare v bigint; begin
+  v := (public.line_water_rules('Uwater1')->'rules'->0->>'id')::bigint;
+  if v is null then raise exception 'rule id listed'; end if;
+  if public.line_delete_water_rule('Uwater2', v) <> 0 then raise exception 'other room deleted'; end if;
+  if public.line_delete_water_rule('Uwater1', v) <> 1 then raise exception 'delete one'; end if;
+  if exists (select 1 from public.water_alert_rules where id = v) then raise exception 'still there'; end if;
+end $$;

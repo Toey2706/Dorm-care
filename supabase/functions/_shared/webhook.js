@@ -108,6 +108,10 @@ export function createWebhook({ rpc, storage, logger, richMenu = null, onTicketC
         await rpc('line_clear_water_rules', { p_user_id: userId });
         replies.push(M.text('ลบช่วงเวลาทั้งหมดแล้ว'), await waterRulesMessage(userId));
       }
+      if (effect.type === 'deleteWaterRule') {
+        const n = await rpc('line_delete_water_rule', { p_user_id: userId, p_rule_id: effect.id });
+        replies.push(M.text(n ? 'ลบช่วงเวลานี้แล้ว' : 'ช่วงเวลานี้ถูกลบไปแล้ว'), await waterRulesMessage(userId));
+      }
       if (effect.type === 'addWaterRule') replies.push(...(await addWaterRule(userId, effect.rule)));
     }
     if (event.webhookEventId) await rpc('line_mark_processed', { p_event_id: event.webhookEventId });

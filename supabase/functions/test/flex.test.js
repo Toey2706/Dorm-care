@@ -86,3 +86,10 @@ test('การ์ดน้ำ แจ้งซ่อม และติดตา
   }
   assert.equal(M.waterUsage('A1-01', { today_l: 1, week_l: 1, month_l: 1, at: '2026-11-21T13:00:00Z' }).type, 'flex');
 });
+
+test('การ์ดตั้งแจ้งเตือนน้ำมีปุ่มลบทีละช่วง', () => {
+  const m = M.waterRules('A1-01', [{ id: 7, start_min: 540, end_min: 600, minutes: 30 }], 10);
+  const json = JSON.stringify(m.contents);
+  assert.match(json, /"data":"water:del:7"/);
+  assert.match(json, /ลบช่วงเวลา 09:00-10:00/);
+});
